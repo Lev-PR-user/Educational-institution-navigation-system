@@ -1,6 +1,6 @@
 # Educational institution navigation system
  
- 68747470733a2f2f6f63746f6465782e6769746875622e636f6d2f696d616765732f6f7264657265646c6973746f6361742e706e67
+![Логотип](https://octodex.github.com/images/orderedlistocat.png "Логотип GitHub")
  
 Веб-приложение для навигации по учебному заведению с системой управления преподавателями, аудиториями и FAQ.
 
