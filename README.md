@@ -32,7 +32,7 @@ navi-college/
         authMiddleware.js
         checkAdmin.js
         ...
-    repositories/
+    repositories/ - для взвимодействия с базой данных приложения
         AdministrationRepository.js
         AnswersRepository.js
         ...
@@ -40,11 +40,11 @@ navi-college/
         userRoutes.js
         teacherRoutes.js
         ...
-    services/
+    services/ - бизнес-логика
         AdministrationService.js
         AnswersService.js
         ...
-    validators/
+    validators/ - Обработка возможных ошибок 
         AdministrationValidator.js
         AnswersValidator.js
         ...
