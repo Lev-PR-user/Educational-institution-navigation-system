@@ -31,9 +31,22 @@ navi-college/
     middleware/ - Промежуточное ПО
         authMiddleware.js
         checkAdmin.js
+        ...
+    repositories/
+        AdministrationRepository.js
+        AnswersRepository.js
+        ...
     routes/ - Маршруты API
         userRoutes.js
         teacherRoutes.js
+        ...
+    services/
+        AdministrationService.js
+        AnswersService.js
+        ...
+    validators/
+        AdministrationValidator.js
+        AnswersValidator.js
         ...
     .env - Переменные окружения
     app.js - Основной файл приложения
@@ -54,4 +67,4 @@ clubs - кружки и секции
 Скачиваем папку src открываем её в vs code
 Заполняем файл .env своими данными
 Открываем терминал запускаем команды: npm i или npm install (для скачивание node_modules)
-Запускаем программу с помощью команды npm start или node.js
+Запускаем программу с помощью команды npm start
