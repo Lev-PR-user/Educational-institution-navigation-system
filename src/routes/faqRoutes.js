@@ -5,7 +5,9 @@ const authMiddleware = require('../middleware/authMiddleware');
 const checkAdmin = require('../middleware/checkAdmin');
 
 router.use(authMiddleware.Protect);
-router.get('/',  FaqController.getfaq);
+router.get('/',  FaqController.getFaq);
+router.get('/category/:category', FaqController.getFaqByCategory);
+router.get('/:id', FaqController.getFaqById);
 
 router.use(authMiddleware.Protect);
 router.use(checkAdmin);

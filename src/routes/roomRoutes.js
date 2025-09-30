@@ -7,13 +7,13 @@ const checkAdmin = require('../middleware/checkAdmin');
 
 router.use(authMiddleware.Protect);
 router.get('/', RoomsController.getAllRooms);
-router.get('/:id', RoomsController.getRoomById);
+router.get('/:RoomNumber', RoomsController.getRoomByNumber);
 router.get('/location/:locationId', RoomsController.getRoomsByLocation);
 
 router.use(authMiddleware.Protect);
 router.use(checkAdmin);
 router.post('/', RoomsController.createRoom);
-router.put('/:id', RoomsController.updateRoom);
-router.delete('/:id',  RoomsController.deleteRoom);
+router.put('/:RoomNumber', RoomsController.updateRoom);
+router.delete('/:RoomNumber',  RoomsController.deleteRoom);
 
 module.exports = router;

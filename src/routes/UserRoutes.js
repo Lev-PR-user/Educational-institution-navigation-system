@@ -7,8 +7,8 @@ router.post('/register', UserController.register);
 router.post('/login', UserController.login);
 
 router.use(authMiddleware.Protect);
-router.get('/profile', UserController.GetUserProfile);
-router.put('/profile', UserController.UpdateUser);
-router.delete('/profile',  UserController.DeleteUser);
+router.get('/profile', UserController.getProfile);
+router.put('/profile', UserController.updateProfile);
+router.delete('/profile', UserController.deleteProfile);
 
 module.exports = router;

@@ -16,3 +16,4 @@ router.put('/:id', LocationsController.updateLocation);
 router.delete('/:id', LocationsController.deleteLocation);
 
 module.exports = router;
+

@@ -6,11 +6,12 @@ const checkAdmin = require('../middleware/checkAdmin');
 
 router.use(authMiddleware.Protect);
 router.get('/', ClubsController.getClubs);
+router.get('/:id', ClubsController.getClubById);
 
 router.use(authMiddleware.Protect);
 router.use(checkAdmin);
-router.post('/', ClubsController.createClubs);
-router.put('/:id', ClubsController.updateClubs);
-router.delete('/:id', ClubsController.deleteClubs);
+router.post('/', ClubsController.createClub);
+router.put('/:id', ClubsController.updateClub);
+router.delete('/:id', ClubsController.deleteClub);
 
 module.exports = router;

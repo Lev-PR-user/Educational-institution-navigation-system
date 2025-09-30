@@ -6,11 +6,12 @@ const checkAdmin = require('../middleware/checkAdmin');
 
 router.use(authMiddleware.Protect);
 router.get('/',  ContactsController.getContacts);
+router.get('/:id', ContactsController.getContactById);
 
 router.use(authMiddleware.Protect);
 router.use(checkAdmin);
-router.post('/', ContactsController.createContacts);
-router.put('/:id',  ContactsController.updateContacts);
-router.delete('/:id', ContactsController.deleteContacts);
+router.post('/', ContactsController.createContact);
+router.put('/:id',  ContactsController.updateContact);
+router.delete('/:id', ContactsController.deleteContact);
 
 module.exports = router;

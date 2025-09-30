@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.use(authMiddleware.Protect);
 router.get('/', QuestionsController.getAllQuestions);
 router.get('/:id',  QuestionsController.getQuestionById);
+
 router.post('/', QuestionsController.createQuestion);
 router.put('/:id',  QuestionsController.updateQuestion);
 router.patch('/:id/status',  QuestionsController.toggleQuestionStatus);

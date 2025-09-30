@@ -6,6 +6,7 @@ const checkAdmin = require('../middleware/checkAdmin');
 
 router.use(authMiddleware.Protect);
 router.get('/', AdministrationController.getAllAdministration);
+router.get('/:id', AdministrationController.getAdministrationById);
 
 router.use(authMiddleware.Protect);
 router.use(checkAdmin);

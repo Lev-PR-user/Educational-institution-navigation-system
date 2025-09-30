@@ -2,6 +2,7 @@ const { Console } = require("console");
 
 async function CreateTables(pool) {
     try{
+
 const Createusers = 
 `CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
@@ -21,17 +22,25 @@ const Createusers =
 
 const Createfloors = 
 `CREATE TABLE floors (
-    floor_number INTEGER PRIMARY KEY NOT NULL,
+    floor_number INTEGER PRIMARY KEY,
     map_image_url VARCHAR(255) NOT NULL
+)`;
+
+const Createrooms = `
+CREATE TABLE rooms (
+    room_number VARCHAR(15) PRIMARY KEY,
+    room_url VARCHAR(255) NOT NULL
 )`;
 
 const Createlocations = 
 `CREATE TABLE locations (
     location_id SERIAL PRIMARY KEY,
     description TEXT NOT NULL,
-    room VARCHAR(100) NOT NULL, 
-    floor_number INTEGER NOT NULL REFERENCES floors(floor_number) ON DELETE CASCADE ON UPDATE CASCADE
+    room_number VARCHAR(15) REFERENCES rooms(room_number) ON DELETE CASCADE,     
+    floor_number INTEGER NOT NULL REFERENCES floors(floor_number) ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE (room_number, floor_number)
 )`;
+
 
 const Createteachers = 
 `CREATE TABLE teachers (
@@ -48,14 +57,6 @@ const Createroles =
     role_name BOOLEAN NOT NULL DEFAULT FALSE
 )`;
 
-const Createrooms = `
-CREATE TABLE rooms (
-    room_id SERIAL PRIMARY KEY,
-    location_id INTEGER NOT NULL REFERENCES locations(location_id) ON DELETE CASCADE ON UPDATE CASCADE,    
-    room_number VARCHAR(15) NOT NULL,
-    room_url VARCHAR(255) NOT NULL,
-    UNIQUE (room_number, location_id)
-)`;
 
 const Createfaq = `
 CREATE TABLE faq (
@@ -69,7 +70,6 @@ const Createadministration = `
 CREATE TABLE administration (
     administration_id SERIAL PRIMARY KEY,
     name_administration VARCHAR(100) NOT NULL,
-    phone_number VARCHAR(20),
     position VARCHAR(100) NOT NULL,
     photo_url VARCHAR(255) NOT NULL,
     location_id INTEGER REFERENCES locations(location_id) ON DELETE SET NULL
@@ -126,6 +126,9 @@ console.log('users created')
 await pool.query(Createfloors)
 console.log('floors created')
 
+await pool.query(Createrooms)
+console.log('rooms created')
+
 await pool.query(Createlocations)
 console.log('locations created')
 
@@ -134,9 +137,6 @@ console.log('teachers created')
 
 await pool.query(Createroles)
 console.log('roles created')
-
-await pool.query(Createrooms)
-console.log('rooms created')
 
 await pool.query(Createfaq)
 console.log('users created')
