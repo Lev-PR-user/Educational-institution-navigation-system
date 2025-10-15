@@ -76,4 +76,4 @@ class FloorsController {
     }
 }
 
-module.exports = new FloorsController();
+module.exports =  FloorsController;

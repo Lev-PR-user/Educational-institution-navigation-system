@@ -90,4 +90,4 @@ class RoomsController {
     }
 }
 
-module.exports = new RoomsController();
+module.exports =  RoomsController;

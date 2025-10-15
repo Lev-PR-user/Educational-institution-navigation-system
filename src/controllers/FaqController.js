@@ -82,4 +82,4 @@ class FaqsController {
     }
 }
 
-module.exports = new FaqsController();
+module.exports =  FaqsController;

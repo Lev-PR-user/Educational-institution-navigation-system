@@ -72,4 +72,4 @@ class TeachersController {
     }
 }
 
-module.exports = new TeachersController();
+module.exports =  TeachersController;

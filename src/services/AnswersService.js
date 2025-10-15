@@ -113,4 +113,4 @@ class AnswersService {
     }
 }
 
-module.exports = new AnswersService();
+module.exports =  AnswersService;

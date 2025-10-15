@@ -74,4 +74,4 @@ class ContactsController {
     }
 }
 
-module.exports = new ContactsController();
+module.exports =  ContactsController;

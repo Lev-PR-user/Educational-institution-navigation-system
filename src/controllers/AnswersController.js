@@ -91,4 +91,4 @@ class AnswersController {
     }
 }
 
-module.exports = new AnswersController();
+module.exports =  AnswersController;

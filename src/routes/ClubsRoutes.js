@@ -1,17 +1,21 @@
 const express = require('express');
-const router = express.Router();
-const ClubsController = require('../controllers/ClubsController');
-const authMiddleware = require('../middleware/authMiddleware');
-const checkAdmin = require('../middleware/checkAdmin');
 
-router.use(authMiddleware.Protect);
-router.get('/', ClubsController.getClubs);
-router.get('/:id', ClubsController.getClubById);
+function createClubsRoutes(clubsController, authMiddleware, checkAdmin) {
+  const router = express.Router();
 
-router.use(authMiddleware.Protect);
-router.use(checkAdmin);
-router.post('/', ClubsController.createClub);
-router.put('/:id', ClubsController.updateClub);
-router.delete('/:id', ClubsController.deleteClub);
+  // Защищенные маршруты (для всех авторизованных пользователей)
+  router.use(authMiddleware.Protect);
+  
+  router.get('/', (req, res) => clubsController.getClubs(req, res));
+  router.get('/:id', (req, res) => clubsController.getClubById(req, res));
 
-module.exports = router;
+  // Защищенные маршруты только для администраторов
+  router.use(checkAdmin);
+  router.post('/', (req, res) => clubsController.createClub(req, res));
+  router.put('/update/:id', (req, res) => clubsController.updateClub(req, res));
+  router.delete('/delete/:id', (req, res) => clubsController.deleteClub(req, res));
+
+  return router;
+}
+
+module.exports = createClubsRoutes;

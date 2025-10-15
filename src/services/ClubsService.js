@@ -89,4 +89,4 @@ class ClubsService {
     }
 }
 
-module.exports = new ClubsService();
+module.exports =  ClubsService;

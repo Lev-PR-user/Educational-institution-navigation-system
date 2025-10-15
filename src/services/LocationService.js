@@ -106,4 +106,4 @@ async getAllLocations() {
     }
 }
 
-module.exports = new LocationService();
+module.exports =  LocationService;

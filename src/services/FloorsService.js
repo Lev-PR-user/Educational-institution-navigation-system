@@ -87,4 +87,4 @@ class FloorsService {
     }
 }
 
-module.exports = new FloorsService();
+module.exports =  FloorsService;

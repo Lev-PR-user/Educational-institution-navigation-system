@@ -1,114 +1,137 @@
-const pool = require('../config/db');
+const sequelize = require('../config/db');
+const { Sequelize } = require('sequelize');
 
 class QuestionsRepository {
     async findAllWithDetails() {
-        const query = `
-            SELECT 
-                q.question_id,
-                q.user_id,
-                q.title,
-                q.text,
-                q.created_at,
-                q.is_closed,
-                u.login_name as author_name,
-                COUNT(a.answer_id) as answer_count
-            FROM questions q
-            LEFT JOIN users u ON q.user_id = u.user_id
-            LEFT JOIN answers a ON q.question_id = a.question_id
-            GROUP BY q.question_id, u.login_name
-            ORDER BY q.created_at DESC
-        `;
-        
-        const result = await pool.query(query);
-        return result.rows;
+        const result = await sequelize.models.questions.findAll({
+            attributes: [
+                'question_id',
+                'user_id',
+                'title',
+                'text',
+                'created_at',
+                'is_closed',
+                [sequelize.literal('"author"."login_name"'), 'author_name'],
+                [Sequelize.fn('COUNT', Sequelize.col('answers.answer_id')), 'answer_count']
+            ],
+            include: [
+                {
+                    model: sequelize.models.users,
+                    as: 'author',
+                    attributes: []
+                },
+                {
+                    model: sequelize.models.answers,
+                    as: 'answers',
+                    attributes: [],
+                    required: false
+                }
+            ],
+            group: ['question_id', 'author.user_id'],
+            order: [['created_at', 'DESC']]
+        });
+        return result;
     }
 
     async findById(question_id) {
-        const query = `
-            SELECT 
-                q.question_id,
-                q.user_id,
-                q.title,
-                q.text,
-                q.created_at,
-                q.is_closed,
-                u.login_name as author_name
-            FROM questions q
-            LEFT JOIN users u ON q.user_id = u.user_id
-            WHERE q.question_id = $1
-        `;
-        
-        const result = await pool.query(query, [question_id]);
-        return result.rows[0] || null;
+        const result = await sequelize.models.questions.findOne({
+            attributes: [
+                'question_id',
+                'user_id',
+                'title',
+                'text',
+                'created_at',
+                'is_closed',
+                [sequelize.literal('"author"."login_name"'), 'author_name']
+            ],
+            include: [
+                {
+                    model: sequelize.models.users,
+                    as: 'author',
+                    attributes: []
+                }
+            ],
+            where: { question_id }
+        });
+        return result;
     }
 
     async create(questionData) {
         const { user_id, title, text } = questionData;
         
-        const result = await pool.query(
-            `INSERT INTO questions (user_id, title, text) 
-             VALUES ($1, $2, $3) RETURNING *`,
-            [user_id, title, text]
-        );
+        const result = await sequelize.models.questions.create({
+            user_id,
+            title,
+            text
+        });
         
-        return result.rows[0];
+        return result;
     }
 
     async update(question_id, questionData) {
         const { title, text } = questionData;
         
-        const result = await pool.query(
-            `UPDATE questions 
-             SET title = COALESCE($1, title),
-                 text = COALESCE($2, text)
-             WHERE question_id = $3
-             RETURNING *`,
-            [title, text, question_id]
-        );
+        await sequelize.models.questions.update({
+            title,
+            text
+        }, {
+            where: { question_id }
+        });
+
+        const updatedQuestion = await sequelize.models.questions.findOne({
+            where: { question_id }
+        });
         
-        return result.rows[0] || null;
+        return updatedQuestion;
     }
 
     async updateStatus(question_id, is_closed) {
-        const result = await pool.query(
-            'UPDATE questions SET is_closed = $1 WHERE question_id = $2 RETURNING *',
-            [is_closed, question_id]
-        );
+        await sequelize.models.questions.update({
+            is_closed
+        }, {
+            where: { question_id }
+        });
+
+        const updatedQuestion = await sequelize.models.questions.findOne({
+            where: { question_id }
+        });
         
-        return result.rows[0] || null;
+        return updatedQuestion;
     }
 
     async delete(question_id) {
-        const result = await pool.query(
-            'DELETE FROM questions WHERE question_id = $1 RETURNING *',
-            [question_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.questions.destroy({
+            where: { question_id }
+        });
+        return result > 0;
     }
 
     async exists(question_id) {
-        const result = await pool.query(
-            'SELECT question_id FROM questions WHERE question_id = $1',
-            [question_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.questions.findOne({
+            where: { question_id },
+            attributes: ['question_id']
+        });
+        return result !== null;
     }
 
     async isAuthor(question_id, user_id) {
-        const result = await pool.query(
-            'SELECT user_id FROM questions WHERE question_id = $1 AND user_id = $2',
-            [question_id, user_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.questions.findOne({
+            where: { 
+                question_id,
+                user_id
+            },
+            attributes: ['user_id']
+        });
+        return result !== null;
     }
 
     async getUserRole(user_id) {
-        const result = await pool.query(
-            'SELECT role_name FROM roles WHERE user_id = $1',
-            [user_id]
-        );
-        return result.rows[0] ? result.rows[0].role_name : null;
+        const result = await sequelize.models.roles.findOne({
+            where: { user_id },
+            attributes: ['role_name']
+        });
+        return result ? result.role_name : null;
     }
 }
 
-module.exports = new QuestionsRepository();
+module.exports =  QuestionsRepository;

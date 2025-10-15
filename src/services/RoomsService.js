@@ -102,4 +102,4 @@ class RoomService {
     }
 }
 
-module.exports = new RoomService();
+module.exports =  RoomService;

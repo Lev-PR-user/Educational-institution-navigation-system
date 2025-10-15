@@ -1,19 +1,22 @@
 const express = require('express');
-const router = express.Router();
-const LocationsController = require('../controllers/LocationsController');
-const authMiddleware = require('../middleware/authMiddleware');
-const checkAdmin = require('../middleware/checkAdmin');
 
-router.use(authMiddleware.Protect);
-router.get('/', LocationsController.getAllLocations);
-router.get('/:id', LocationsController.getLocationById);
-router.get('/floor/:floorNumber', LocationsController.getLocationsByFloor);
+function createLocationRoutes(locationsController, authMiddleware, checkAdmin) {
+  const router = express.Router();
 
-router.use(authMiddleware.Protect);
-router.use(checkAdmin);
-router.post('/', LocationsController.createLocation);
-router.put('/:id', LocationsController.updateLocation);
-router.delete('/:id', LocationsController.deleteLocation);
+  // Защищенные маршруты (для всех авторизованных пользователей)
+  router.use(authMiddleware.Protect);
+  
+  router.get('/', (req, res) => locationsController.getAllLocations(req, res));
+  router.get('/:id', (req, res) => locationsController.getLocationById(req, res));
+  router.get('/floor/:floorNumber', (req, res) => locationsController.getLocationsByFloor(req, res));
 
-module.exports = router;
+  // Защищенные маршруты только для администраторов
+  router.use(checkAdmin);
+  router.post('/', (req, res) => locationsController.createLocation(req, res));
+  router.put('/update/:id', (req, res) => locationsController.updateLocation(req, res));
+  router.delete('/delete/:id', (req, res) => locationsController.deleteLocation(req, res));
 
+  return router;
+}
+
+module.exports = createLocationRoutes;

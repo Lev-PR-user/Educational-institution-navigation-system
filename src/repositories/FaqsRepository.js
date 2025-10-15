@@ -1,80 +1,81 @@
-const pool = require('../config/db');
+const sequelize = require('../config/db');
 
 class FaqsRepository {
     async findAll() {
-        const query = `
-            SELECT 
-                faq_id,
-                question,
-                answer,
-                category
-            FROM faq
-            ORDER BY category, faq_id;
-        `;
-        
-        const result = await pool.query(query);
-        return result.rows;
+        const result = await sequelize.models.faq.findAll({
+            attributes: [
+                'faq_id',
+                'question',
+                'answer',
+                'category'
+            ],
+            order: [
+                ['category', 'ASC'],
+                ['faq_id', 'ASC']
+            ]
+        });
+        return result;
     }
 
     async findById(faq_id) {
-        const result = await pool.query(
-            'SELECT * FROM faq WHERE faq_id = $1',
-            [faq_id]
-        );
-        return result.rows[0] || null;
+        const result = await sequelize.models.faq.findOne({
+            where: { faq_id }
+        });
+        return result;
     }
 
     async findByCategory(category) {
-        const result = await pool.query(
-            'SELECT * FROM faq WHERE category = $1 ORDER BY faq_id',
-            [category]
-        );
-        return result.rows;
+        const result = await sequelize.models.faq.findAll({
+            where: { category },
+            order: [['faq_id', 'ASC']]
+        });
+        return result;
     }
 
     async create(faqData) {
         const { question, answer, category } = faqData;
         
-        const result = await pool.query(
-            `INSERT INTO faq (question, answer, category) 
-             VALUES ($1, $2, $3) RETURNING *`,
-            [question, answer, category]
-        );
+        const result = await sequelize.models.faq.create({
+            question,
+            answer,
+            category
+        });
         
-        return result.rows[0];
+        return result;
     }
 
     async update(faq_id, faqData) {
         const { question, answer, category } = faqData;
         
-        const result = await pool.query(
-            `UPDATE faq 
-             SET question = COALESCE($1, question),
-                 answer = COALESCE($2, answer),
-                 category = COALESCE($3, category)
-             WHERE faq_id = $4
-             RETURNING *`,
-            [question, answer, category, faq_id]
-        );
+        await sequelize.models.faq.update({
+            question,
+            answer,
+            category
+        }, {
+            where: { faq_id }
+        });
+
+        const updatedFaq = await sequelize.models.faq.findOne({
+            where: { faq_id }
+        });
         
-        return result.rows[0] || null;
+        return updatedFaq;
     }
 
     async delete(faq_id) {
-        const result = await pool.query(
-            'DELETE FROM faq WHERE faq_id = $1 RETURNING *',
-            [faq_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.faq.destroy({
+            where: { faq_id }
+        });
+        return result > 0;
     }
 
     async exists(faq_id) {
-        const result = await pool.query(
-            'SELECT faq_id FROM faq WHERE faq_id = $1',
-            [faq_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.faq.findOne({
+            where: { faq_id },
+            attributes: ['faq_id']
+        });
+        return result !== null;
     }
 }
 
-module.exports = new FaqsRepository();
+module.exports =  FaqsRepository;

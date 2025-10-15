@@ -1,162 +1,430 @@
-const { Console } = require("console");
+const { DataTypes } = require("sequelize");
 
-async function CreateTables(pool) {
-    try{
+async function CreateTables(sequelize) {
+    try {
+        // Модель пользователей
+        const Users = sequelize.define('users', {
+            user_id: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                autoIncrement: true,
+                field: 'user_id'
+            },
+            login_name: {
+                type: DataTypes.STRING(100),
+                allowNull: true,
+                field: 'login_name'
+            },
+            email_users: {
+                type: DataTypes.STRING(100),
+                allowNull: true,
+                field: 'email_users',
+                validate: {
+                    isEmailDomain: function(value) {
+                        if (value && ![
+                            '@mail.ru', '@gmail.com', '@yandex.ru', 
+                            '@outlook.com', '@bk.ru', '@inbox.ru', '@rambler.ru'
+                        ].some(domain => value.endsWith(domain))) {
+                            throw new Error('Email must be from allowed domains');
+                        }
+                    }
+                }
+            },
+            password_hash: {
+                type: DataTypes.STRING(100),
+                allowNull: false,
+                field: 'password_hash'
+            },
+            photo_url: {
+                type: DataTypes.STRING(255),
+                allowNull: false,
+                field: 'photo_url'
+            }
+        }, {
+            tableName: 'users',
+            timestamps: false,
+            underscored: true
+        });
 
-const Createusers = 
-`CREATE TABLE users (
-    user_id SERIAL PRIMARY KEY,
-    login_name VARCHAR(100),
-    email_users VARCHAR(100) CHECK (
-        email_users LIKE '%@mail.ru' OR
-        email_users LIKE '%@gmail.com' OR
-        email_users LIKE '%@yandex.ru' OR
-        email_users LIKE '%@outlook.com' OR
-        email_users LIKE '%@bk.ru' OR
-        email_users LIKE '%@inbox.ru' OR
-        email_users LIKE '%@rambler.ru'
-    ),
-    password_hash VARCHAR(100) NOT NULL,
-    photo_url VARCHAR(255) NOT NULL
-)`;
+        // Модель этажей
+        const Floors = sequelize.define('floors', {
+            floor_number: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                field: 'floor_number'
+            },
+            map_image_url: {
+                type: DataTypes.STRING(255),
+                allowNull: false,
+                field: 'map_image_url'
+            }
+        }, {
+            tableName: 'floors',
+            timestamps: false,
+            underscored: true
+        });
 
-const Createfloors = 
-`CREATE TABLE floors (
-    floor_number INTEGER PRIMARY KEY,
-    map_image_url VARCHAR(255) NOT NULL
-)`;
+        // Модель комнат
+        const Rooms = sequelize.define('rooms', {
+            room_number: {
+                type: DataTypes.STRING(15),
+                primaryKey: true,
+                field: 'room_number'
+            },
+            room_url: {
+                type: DataTypes.STRING(255),
+                allowNull: false,
+                field: 'room_url'
+            }
+        }, {
+            tableName: 'rooms',
+            timestamps: false,
+            underscored: true
+        });
 
-const Createrooms = `
-CREATE TABLE rooms (
-    room_number VARCHAR(15) PRIMARY KEY,
-    room_url VARCHAR(255) NOT NULL
-)`;
+        // Модель локаций
+        const Locations = sequelize.define('locations', {
+            location_id: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                autoIncrement: true,
+                field: 'location_id'
+            },
+            description: {
+                type: DataTypes.TEXT,
+                allowNull: false,
+                field: 'description'
+            },
+            room_number: {
+                type: DataTypes.STRING(15),
+                allowNull: false,
+                field: 'room_number'
+            },
+            floor_number: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                field: 'floor_number'
+            }
+        }, {
+            tableName: 'locations',
+            timestamps: false,
+            underscored: true,
+            indexes: [
+                {
+                    unique: true,
+                    fields: ['room_number', 'floor_number']
+                }
+            ]
+        });
 
-const Createlocations = 
-`CREATE TABLE locations (
-    location_id SERIAL PRIMARY KEY,
-    description TEXT NOT NULL,
-    room_number VARCHAR(15) REFERENCES rooms(room_number) ON DELETE CASCADE,     
-    floor_number INTEGER NOT NULL REFERENCES floors(floor_number) ON DELETE CASCADE ON UPDATE CASCADE,
-    UNIQUE (room_number, floor_number)
-)`;
+        // Модель преподавателей
+        const Teachers = sequelize.define('teachers', {
+            teacher_id: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                autoIncrement: true,
+                field: 'teacher_id'
+            },
+            position: {
+                type: DataTypes.STRING(100),
+                allowNull: false,
+                field: 'position'
+            },
+            photo_url: {
+                type: DataTypes.STRING(255),
+                allowNull: false,
+                field: 'photo_url'
+            },
+            location_id: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                field: 'location_id'
+            },
+            name_teacher: {
+                type: DataTypes.STRING(100),
+                allowNull: false,
+                field: 'name_teacher'
+            }
+        }, {
+            tableName: 'teachers',
+            timestamps: false,
+            underscored: true
+        });
 
+        // Модель ролей
+        const Roles = sequelize.define('roles', {
+            user_id: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                field: 'user_id'
+            },
+            role_name: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+                field: 'role_name'
+            }
+        }, {
+            tableName: 'roles',
+            timestamps: false,
+            underscored: true
+        });
 
-const Createteachers = 
-`CREATE TABLE teachers (
-    teacher_id SERIAL PRIMARY KEY,
-    position VARCHAR(100) NOT NULL,
-    photo_url VARCHAR(255) NOT NULL,
-    location_id INTEGER REFERENCES locations(location_id) ON DELETE SET NULL,
-    name_teacher VARCHAR(100) NOT NULL 
-)`;
+        // Модель FAQ
+        const FAQ = sequelize.define('faq', {
+            faq_id: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                autoIncrement: true,
+                field: 'faq_id'
+            },
+            question: {
+                type: DataTypes.TEXT,
+                allowNull: false,
+                field: 'question'
+            },
+            answer: {
+                type: DataTypes.TEXT,
+                allowNull: false,
+                field: 'answer'
+            },
+            category: {
+                type: DataTypes.STRING(100),
+                allowNull: false,
+                field: 'category'
+            }
+        }, {
+            tableName: 'faq',
+            timestamps: false,
+            underscored: true
+        });
 
-const Createroles = 
-`CREATE TABLE roles (
-    user_id INTEGER REFERENCES users(user_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    role_name BOOLEAN NOT NULL DEFAULT FALSE
-)`;
+        // Модель администрации
+        const Administration = sequelize.define('administration', {
+            administration_id: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                autoIncrement: true,
+                field: 'administration_id'
+            },
+            name_administration: {
+                type: DataTypes.STRING(100),
+                allowNull: false,
+                field: 'name_administration'
+            },
+            position: {
+                type: DataTypes.STRING(100),
+                allowNull: false,
+                field: 'position'
+            },
+            photo_url: {
+                type: DataTypes.STRING(255),
+                allowNull: false,
+                field: 'photo_url'
+            },
+            location_id: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                field: 'location_id'
+            }
+        }, {
+            tableName: 'administration',
+            timestamps: false,
+            underscored: true
+        });
 
+        // Модель контактов
+        const Contacts = sequelize.define('contacts', {
+            contacts_id: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                field: 'contacts_id'
+            },
+            phone_number: {
+                type: DataTypes.STRING(20),
+                allowNull: true,
+                field: 'phone_number'
+            },
+            administration_email: {
+                type: DataTypes.STRING(100),
+                allowNull: true,
+                field: 'administration_email',
+                validate: {
+                    isEmailDomain: function(value) {
+                        if (value && ![
+                            '@mail.ru', '@gmail.com', '@yandex.ru', 
+                            '@outlook.com', '@bk.ru', '@inbox.ru', '@rambler.ru'
+                        ].some(domain => value.endsWith(domain))) {
+                            throw new Error('Email must be from allowed domains');
+                        }
+                    }
+                }
+            }
+        }, {
+            tableName: 'contacts',
+            timestamps: false,
+            underscored: true
+        });
 
-const Createfaq = `
-CREATE TABLE faq (
-    faq_id SERIAL PRIMARY KEY,
-    question TEXT NOT NULL,
-    answer TEXT NOT NULL,
-    category VARCHAR(100) NOT NULL 
-)`;
+        // Модель клубов
+        const Clubs = sequelize.define('clubs', {
+            club_id: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                autoIncrement: true,
+                field: 'club_id'
+            },
+            name_clubs: {
+                type: DataTypes.STRING(100),
+                allowNull: false,
+                field: 'name_clubs'
+            },
+            description: {
+                type: DataTypes.STRING(255),
+                allowNull: false,
+                field: 'description'
+            },
+            contact_info: {
+                type: DataTypes.STRING(100),
+                allowNull: false,
+                field: 'contact_info'
+            },
+            image_url: {
+                type: DataTypes.STRING(255),
+                allowNull: false,
+                field: 'image_url'
+            },
+            location_id: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                field: 'location_id'
+            }
+        }, {
+            tableName: 'clubs',
+            timestamps: false,
+            underscored: true
+        });
 
-const Createadministration = `
-CREATE TABLE administration (
-    administration_id SERIAL PRIMARY KEY,
-    name_administration VARCHAR(100) NOT NULL,
-    position VARCHAR(100) NOT NULL,
-    photo_url VARCHAR(255) NOT NULL,
-    location_id INTEGER REFERENCES locations(location_id) ON DELETE SET NULL
-)`;
+        // Модель вопросов
+        const Questions = sequelize.define('questions', {
+            question_id: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                autoIncrement: true,
+                field: 'question_id'
+            },
+            user_id: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                field: 'user_id'
+            },
+            title: {
+                type: DataTypes.STRING(255),
+                allowNull: false,
+                field: 'title'
+            },
+            text: {
+                type: DataTypes.TEXT,
+                allowNull: false,
+                field: 'text'
+            },
+            created_at: {
+                type: DataTypes.DATE,
+                allowNull: false,
+                defaultValue: DataTypes.NOW,
+                field: 'created_at'
+            },
+            is_closed: {
+                type: DataTypes.BOOLEAN,
+                allowNull: true,
+                defaultValue: false,
+                field: 'is_closed'
+            }
+        }, {
+            tableName: 'questions',
+            timestamps: false,
+            underscored: true
+        });
 
-const Createacontacts = `
-CREATE TABLE contacts (
-    contacts_id INTEGER PRIMARY KEY REFERENCES administration(administration_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    phone_number VARCHAR(20),
-    administration_email VARCHAR(100) CHECK (
-        administration_email LIKE '%@mail.ru' OR
-        administration_email LIKE '%@gmail.com' OR
-        administration_email LIKE '%@yandex.ru' OR
-        administration_email LIKE '%@outlook.com' OR
-        administration_email LIKE '%@bk.ru' OR
-        administration_email LIKE '%@inbox.ru' OR
-        administration_email LIKE '%@rambler.ru'
-    )
-)`;
+        // Модель ответов
+        const Answers = sequelize.define('answers', {
+            answer_id: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                autoIncrement: true,
+                field: 'answer_id'
+            },
+            question_id: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                field: 'question_id'
+            },
+            user_id: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                field: 'user_id'
+            },
+            text: {
+                type: DataTypes.TEXT,
+                allowNull: false,
+                field: 'text'
+            },
+            created_at: {
+                type: DataTypes.DATE,
+                allowNull: false,
+                defaultValue: DataTypes.NOW,
+                field: 'created_at'
+            },
+            is_solution: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+                field: 'is_solution'
+            }
+        }, {
+            tableName: 'answers',
+            timestamps: false,
+            underscored: true
+        });
 
-const Createaclubs = `
-CREATE TABLE clubs (
-    club_id SERIAL PRIMARY KEY,
-    name_clubs VARCHAR(100) NOT NULL,
-    description VARCHAR(255) NOT NULL,
-    contact_info VARCHAR(100) NOT NULL,
-    image_url VARCHAR(255) NOT NULL,
-    location_id INTEGER REFERENCES locations(location_id) ON DELETE CASCADE ON UPDATE CASCADE
-)`;
+        // Определение связей между таблицами
+        Users.hasOne(Roles, { foreignKey: 'user_id' });
+        Roles.belongsTo(Users, { foreignKey: 'user_id' });
 
-const Createaquestions =
-`CREATE TABLE questions (
-    question_id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    text TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-    is_closed BOOLEAN NULL DEFAULT FALSE
-)`;
+        Floors.hasMany(Locations, { foreignKey: 'floor_number' });
+        Locations.belongsTo(Floors, { foreignKey: 'floor_number' });
 
-const Createanswers = `
-CREATE TABLE answers (
-    answer_id SERIAL PRIMARY KEY,
-    question_id INTEGER REFERENCES questions(question_id) ON DELETE CASCADE,
-    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    text TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_solution BOOLEAN NOT NULL DEFAULT FALSE
-)`;
+        Rooms.hasMany(Locations, { foreignKey: 'room_number' });
+        Locations.belongsTo(Rooms, { foreignKey: 'room_number' });
 
-await pool.query(Createusers)
-console.log('users created')
+        Locations.hasMany(Teachers, { foreignKey: 'location_id' });
+        Teachers.belongsTo(Locations, { foreignKey: 'location_id' });
 
-await pool.query(Createfloors)
-console.log('floors created')
+        Locations.hasMany(Administration, { foreignKey: 'location_id' });
+        Administration.belongsTo(Locations, { foreignKey: 'location_id' });
 
-await pool.query(Createrooms)
-console.log('rooms created')
+        Locations.hasMany(Clubs, { foreignKey: 'location_id' });
+        Clubs.belongsTo(Locations, { foreignKey: 'location_id' });
 
-await pool.query(Createlocations)
-console.log('locations created')
+        Administration.hasOne(Contacts, { foreignKey: 'contacts_id' });
+        Contacts.belongsTo(Administration, { foreignKey: 'contacts_id' });
 
-await pool.query(Createteachers)
-console.log('teachers created')
+        Users.hasMany(Questions, { foreignKey: 'user_id' });
+        Questions.belongsTo(Users, { foreignKey: 'user_id' });
 
-await pool.query(Createroles)
-console.log('roles created')
+        Questions.hasMany(Answers, { foreignKey: 'question_id' });
+        Answers.belongsTo(Questions, { foreignKey: 'question_id' });
 
-await pool.query(Createfaq)
-console.log('users created')
+        Users.hasMany(Answers, { foreignKey: 'user_id' });
+        Answers.belongsTo(Users, { foreignKey: 'user_id' });
 
-await pool.query(Createadministration)
-console.log('administration Created')
+        // Создание таблиц в БД
+        await sequelize.sync({ force: false });
+        console.log('All tables for university system created successfully');
 
-await pool.query(Createacontacts)
-console.log('contacts Created')
-
-await pool.query(Createaclubs)
-console.log('clubs Created')
-
-await pool.query(Createaquestions)
-console.log('questions Created')
-
-await pool.query(Createanswers)
-console.log('answers Created')
-    } catch (error){
-        console.error('Error Created', error.message)
+    } catch (error) {
+        console.error('Error creating tables:', error.message);
+        throw error;
     }
 }
 

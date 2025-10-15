@@ -1,84 +1,84 @@
-const pool = require('../config/db');
+const sequelize = require('../config/db');
 
 class ClubsRepository {
     async findAll() {
-        const query = `
-            SELECT 
-                club_id,
-                name_clubs,
-                description,
-                contact_info,
-                image_url,
-                location_id
-            FROM clubs
-            ORDER BY name_clubs;
-        `;
-        
-        const result = await pool.query(query);
-        return result.rows;
+        const result = await sequelize.models.clubs.findAll({
+            attributes: [
+                'club_id',
+                'name_clubs',
+                'description',
+                'contact_info',
+                'image_url',
+                'location_id'
+            ],
+            order: [['name_clubs', 'ASC']]
+        });
+        return result;
     }
 
     async findById(club_id) {
-        const result = await pool.query(
-            'SELECT * FROM clubs WHERE club_id = $1',
-            [club_id]
-        );
-        return result.rows[0] || null;
+        const result = await sequelize.models.clubs.findOne({
+            where: { club_id }
+        });
+        return result;
     }
 
     async create(clubData) {
         const { name_clubs, description, contact_info, image_url, location_id } = clubData;
         
-        const result = await pool.query(
-            `INSERT INTO clubs (name_clubs, description, contact_info, image_url, location_id) 
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [name_clubs, description, contact_info, image_url, location_id]
-        );
+        const result = await sequelize.models.clubs.create({
+            name_clubs,
+            description,
+            contact_info,
+            image_url,
+            location_id
+        });
         
-        return result.rows[0];
+        return result;
     }
 
     async update(club_id, clubData) {
         const { name_clubs, description, contact_info, image_url, location_id } = clubData;
         
-        const result = await pool.query(
-            `UPDATE clubs 
-             SET name_clubs = COALESCE($1, name_clubs),
-                 description = COALESCE($2, description),
-                 contact_info = COALESCE($3, contact_info),
-                 image_url = COALESCE($4, image_url),
-                 location_id = COALESCE($5, location_id)
-             WHERE club_id = $6
-             RETURNING *`,
-            [name_clubs, description, contact_info, image_url, location_id, club_id]
-        );
+        await sequelize.models.clubs.update({
+            name_clubs,
+            description,
+            contact_info,
+            image_url,
+            location_id
+        }, {
+            where: { club_id }
+        });
+
+        const updatedClub = await sequelize.models.clubs.findOne({
+            where: { club_id }
+        });
         
-        return result.rows[0] || null;
+        return updatedClub;
     }
 
     async delete(club_id) {
-        const result = await pool.query(
-            'DELETE FROM clubs WHERE club_id = $1 RETURNING *',
-            [club_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.clubs.destroy({
+            where: { club_id }
+        });
+        return result > 0;
     }
 
     async exists(club_id) {
-        const result = await pool.query(
-            'SELECT club_id FROM clubs WHERE club_id = $1',
-            [club_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.clubs.findOne({
+            where: { club_id },
+            attributes: ['club_id']
+        });
+        return result !== null;
     }
 
     async locationExists(location_id) {
-        const result = await pool.query(
-            'SELECT location_id FROM locations WHERE location_id = $1',
-            [location_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.locations.findOne({
+            where: { location_id },
+            attributes: ['location_id']
+        });
+        return result !== null;
     }
 }
 
-module.exports = new ClubsRepository();
+module.exports =  ClubsRepository;

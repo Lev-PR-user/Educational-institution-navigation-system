@@ -68,4 +68,4 @@ class AdministrationController {
     }
 }
 
-module.exports = new AdministrationController();
+module.exports =  AdministrationController;

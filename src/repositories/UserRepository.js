@@ -1,48 +1,68 @@
-const pool = require('../config/db');
+const sequelize = require('../config/db');
 
 class UserRepository {
     async findByEmail(email) {
-        const result = await pool.query('Select * FROM users WHERE email_users = $1', [email]);
-        return result.rows[0] || null;
+        const result = await sequelize.models.users.findOne({
+            where: { email_users: email }
+        });
+        return result;
     }
 
     async findById(user_id) {
-        const result = await pool.query('SELECT * FROM users WHERE user_id = $1', [user_id]);
-        return result.rows[0] || null;
+        const result = await sequelize.models.users.findOne({
+            where: { user_id }
+        });
+        return result;
     }
 
     async create(userData) {
         const { login_name, email_users, password_hash, photo_url } = userData;
-        const result = await pool.query(
-            'INSERT INTO users (login_name, email_users, password_hash, photo_url) VALUES ($1, $2, $3, $4) RETURNING *',
-            [login_name, email_users, password_hash, photo_url]
-        );
-          await pool.query(
-                'INSERT INTO roles (user_id, role_name) VALUES ($1, $2)',
-                [result.rows[0].user_id, false]
-            );
+        
+        const user = await sequelize.models.users.create({
+            login_name,
+            email_users,
+            password_hash,
+            photo_url
+        });
 
-        return result.rows[0];
+        await sequelize.models.roles.create({
+            user_id: user.user_id,
+            role_name: 'user' 
+        });
+        
+        return user;
     }
 
     async update(user_id, userData) {
         const { login_name, email_users, password_hash, photo_url } = userData;
-        const result = await pool.query(
-            `UPDATE users SET 
-                login_name = COALESCE($1, login_name),
-                email_users = COALESCE($2, email_users),
-                password_hash = COALESCE($3, password_hash),
-                photo_url = COALESCE($4, photo_url)
-             WHERE user_id = $5 RETURNING *`,
-            [login_name, email_users, password_hash, photo_url, user_id]
-        );
-        return result.rows[0];
+        
+        await sequelize.models.users.update({
+            login_name,
+            email_users,
+            password_hash,
+            photo_url
+        }, {
+            where: { user_id }
+        });
+
+        const updatedUser = await sequelize.models.users.findOne({
+            where: { user_id }
+        });
+        
+        return updatedUser;
     }
 
     async delete(user_id) {
-        await pool.query('DELETE FROM users WHERE user_id = $1', [user_id]);
+        await sequelize.models.roles.destroy({
+            where: { user_id }
+        });
+
+        await sequelize.models.users.destroy({
+            where: { user_id }
+        });
+
         return true;
     }
 }
 
-module.exports = new UserRepository();
+module.exports = UserRepository;

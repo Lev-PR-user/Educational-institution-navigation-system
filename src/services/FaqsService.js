@@ -92,4 +92,4 @@ class FaqsService {
     }
 }
 
-module.exports = new FaqsService();
+module.exports =  FaqsService;

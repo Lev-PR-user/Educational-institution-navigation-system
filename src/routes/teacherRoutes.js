@@ -1,17 +1,21 @@
 const express = require('express');
-const router = express.Router();
-const TeachersController = require('../controllers/TeachersController');
-const authMiddleware = require('../middleware/authMiddleware');
-const checkAdmin = require('../middleware/checkAdmin');
 
-router.use(authMiddleware.Protect);
-router.get('/', TeachersController.getAllTeachers);
-router.get('/:id', TeachersController.getTeacherById);
+function createTeacherRoutes(teachersController, authMiddleware, checkAdmin) {
+  const router = express.Router(); // ← ДОБАВЬТЕ ЭТУ СТРОКУ
 
-router.use(authMiddleware.Protect);
-router.use(checkAdmin);
-router.post('/', TeachersController.createTeacher);
-router.put('/:id', TeachersController.updateTeacher);
-router.delete('/:id', TeachersController.deleteTeacher);
+  // Защищенные маршруты (для всех авторизованных пользователей)
+  router.use(authMiddleware.Protect);
+  
+  router.get('/', (req, res) => teachersController.getTeachers(req, res));
+  router.get('/:id', (req, res) => teachersController.getTeacherById(req, res));
 
-module.exports = router;
+  // Защищенные маршруты только для администраторов
+  router.use(checkAdmin);
+  router.post('/', (req, res) => teachersController.createTeacher(req, res));
+  router.put('/update/:id', (req, res) => teachersController.updateTeacher(req, res));
+  router.delete('/delete/:id', (req, res) => teachersController.deleteTeacher(req, res));
+
+  return router;
+}
+
+module.exports = createTeacherRoutes;

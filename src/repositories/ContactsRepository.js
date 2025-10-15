@@ -1,90 +1,99 @@
-const pool = require('../config/db');
+const sequelize = require('../config/db');
 
 class ContactsRepository {
     async findAllWithAdminInfo() {
-        const query = `
-            SELECT 
-                c.contacts_id,
-                c.phone_number,
-                c.administration_email,
-                a.name_administration,
-                a.position
-            FROM contacts c
-            LEFT JOIN administration a ON c.contacts_id = a.administration_id
-            ORDER BY a.name_administration;
-        `;
-        
-        const result = await pool.query(query);
-        return result.rows;
+        const result = await sequelize.models.contacts.findAll({
+            attributes: [
+                'contacts_id',
+                'phone_number',
+                'administration_email',
+                [sequelize.literal('"administration"."name_administration"'), 'name_administration'],
+                [sequelize.literal('"administration"."position"'), 'position']
+            ],
+            include: [
+                {
+                    model: sequelize.models.administration,
+                    as: 'administration',
+                    attributes: []
+                }
+            ],
+            order: [[sequelize.literal('"administration"."name_administration"'), 'ASC']]
+        });
+        return result;
     }
 
     async findById(contacts_id) {
-        const query = `
-            SELECT 
-                c.contacts_id,
-                c.phone_number,
-                c.administration_email,
-                a.name_administration,
-                a.position
-            FROM contacts c
-            LEFT JOIN administration a ON c.contacts_id = a.administration_id
-            WHERE c.contacts_id = $1;
-        `;
-        
-        const result = await pool.query(query, [contacts_id]);
-        return result.rows[0] || null;
+        const result = await sequelize.models.contacts.findOne({
+            attributes: [
+                'contacts_id',
+                'phone_number',
+                'administration_email',
+                [sequelize.literal('"administration"."name_administration"'), 'name_administration'],
+                [sequelize.literal('"administration"."position"'), 'position']
+            ],
+            include: [
+                {
+                    model: sequelize.models.administration,
+                    as: 'administration',
+                    attributes: []
+                }
+            ],
+            where: { contacts_id }
+        });
+        return result;
     }
 
     async create(contactData) {
         const { contacts_id, phone_number, administration_email } = contactData;
         
-        const result = await pool.query(
-            `INSERT INTO contacts (contacts_id, phone_number, administration_email) 
-             VALUES ($1, $2, $3) RETURNING *`,
-            [contacts_id, phone_number, administration_email]
-        );
+        const result = await sequelize.models.contacts.create({
+            contacts_id,
+            phone_number,
+            administration_email
+        });
         
-        return result.rows[0];
+        return result;
     }
 
     async update(contacts_id, contactData) {
         const { phone_number, administration_email } = contactData;
         
-        const result = await pool.query(
-            `UPDATE contacts 
-             SET phone_number = COALESCE($1, phone_number),
-                 administration_email = COALESCE($2, administration_email)
-             WHERE contacts_id = $3
-             RETURNING *`,
-            [phone_number, administration_email, contacts_id]
-        );
+        await sequelize.models.contacts.update({
+            phone_number,
+            administration_email
+        }, {
+            where: { contacts_id }
+        });
+
+        const updatedContact = await sequelize.models.contacts.findOne({
+            where: { contacts_id }
+        });
         
-        return result.rows[0] || null;
+        return updatedContact;
     }
 
     async delete(contacts_id) {
-        const result = await pool.query(
-            'DELETE FROM contacts WHERE contacts_id = $1 RETURNING *',
-            [contacts_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.contacts.destroy({
+            where: { contacts_id }
+        });
+        return result > 0;
     }
 
     async exists(contacts_id) {
-        const result = await pool.query(
-            'SELECT contacts_id FROM contacts WHERE contacts_id = $1',
-            [contacts_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.contacts.findOne({
+            where: { contacts_id },
+            attributes: ['contacts_id']
+        });
+        return result !== null;
     }
 
     async adminExists(administration_id) {
-        const result = await pool.query(
-            'SELECT administration_id FROM administration WHERE administration_id = $1',
-            [administration_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.administration.findOne({
+            where: { administration_id },
+            attributes: ['administration_id']
+        });
+        return result !== null;
     }
 }
 
-module.exports = new ContactsRepository();
+module.exports =  ContactsRepository;

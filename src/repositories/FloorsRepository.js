@@ -1,56 +1,61 @@
-const pool = require('../config/db');
+const sequelize = require('../config/db');
 
 class FloorsRepository {
     async findAll() {
-        const result = await pool.query('SELECT * FROM floors ORDER BY floor_number');
-        return result.rows;
+        const result = await sequelize.models.floors.findAll({
+            order: [['floor_number', 'ASC']]
+        });
+        return result;
     }
 
     async findByNumber(floor_number) {
-        const result = await pool.query(
-            'SELECT * FROM floors WHERE floor_number = $1',
-            [floor_number]
-        );
-        return result.rows[0] || null;
+        const result = await sequelize.models.floors.findOne({
+            where: { floor_number }
+        });
+        return result;
     }
 
     async create(floorData) {
         const { floor_number, map_image_url } = floorData;
         
-        const result = await pool.query(
-            'INSERT INTO floors (floor_number, map_image_url) VALUES ($1, $2) RETURNING *',
-            [floor_number, map_image_url]
-        );
+        const result = await sequelize.models.floors.create({
+            floor_number,
+            map_image_url
+        });
         
-        return result.rows[0];
+        return result;
     }
 
     async update(floor_number, floorData) {
         const { map_image_url } = floorData;
         
-        const result = await pool.query(
-            'UPDATE floors SET map_image_url = COALESCE($1, map_image_url) WHERE floor_number = $2 RETURNING *',
-            [map_image_url, floor_number]
-        );
+        await sequelize.models.floors.update({
+            map_image_url
+        }, {
+            where: { floor_number }
+        });
+
+        const updatedFloor = await sequelize.models.floors.findOne({
+            where: { floor_number }
+        });
         
-        return result.rows[0] || null;
+        return updatedFloor;
     }
 
     async delete(floor_number) {
-        const result = await pool.query(
-            'DELETE FROM floors WHERE floor_number = $1 RETURNING *',
-            [floor_number]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.floors.destroy({
+            where: { floor_number }
+        });
+        return result > 0;
     }
 
     async exists(floor_number) {
-        const result = await pool.query(
-            'SELECT floor_number FROM floors WHERE floor_number = $1',
-            [floor_number]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.floors.findOne({
+            where: { floor_number },
+            attributes: ['floor_number']
+        });
+        return result !== null;
     }
 }
 
-module.exports = new FloorsRepository();
+module.exports =  FloorsRepository;

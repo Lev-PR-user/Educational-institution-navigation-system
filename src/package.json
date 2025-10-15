@@ -3,20 +3,56 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node app.js"
-
+    "start": "node app.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:administration": "jest AdministrationService.test.js --detectOpenHandles --forceExit",
+    "test:answers": "jest AnswersService.test.js --detectOpenHandles --forceExit",
+    "test:clubs": "jest ClubsService.test.js --detectOpenHandles --forceExit",
+    "test:contact": "jest ContactsService.test.js --detectOpenHandles --forceExit",
+    "test:faqs": "jest FaqsService.test.js --detectOpenHandles --forceExit",
+    "test:floors": "jest FloorsService.test.js --detectOpenHandles --forceExit",
+    "test:location": "jest LocationService.test.js --detectOpenHandles --forceExit",
+    "test:question": "jest QuestionsService.test.js --detectOpenHandles --forceExit",
+    "test:rooms": "jest RoomsService.test.js --detectOpenHandles --forceExit",
+    "test:teachers": "jest TeachersService.test.js --detectOpenHandles --forceExit",
+    "test:user": "jest UserService.test.js --detectOpenHandles --forceExit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "awilix": "^12.0.5",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "sequelize": "^6.37.7"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "services/**/*.js",
+      "controllers/**/*.js",
+      "!**/node_modules/**"
+    ],
+    "coverageDirectory": "coverage",
+    "verbose": true,
+    "forceExit": true,
+    "clearMocks": true,
+    "resetMocks": true,
+    "restoreMocks": true
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   }
 }

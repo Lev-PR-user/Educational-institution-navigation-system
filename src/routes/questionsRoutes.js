@@ -1,15 +1,18 @@
 const express = require('express');
-const router = express.Router();
-const QuestionsController = require('../controllers/QuestionsController');
-const authMiddleware = require('../middleware/authMiddleware');
 
-router.use(authMiddleware.Protect);
-router.get('/', QuestionsController.getAllQuestions);
-router.get('/:id',  QuestionsController.getQuestionById);
+function createQuestionsRoutes(questionsController, authMiddleware) {
+  const router = express.Router();
 
-router.post('/', QuestionsController.createQuestion);
-router.put('/:id',  QuestionsController.updateQuestion);
-router.patch('/:id/status',  QuestionsController.toggleQuestionStatus);
-router.delete('/:id', QuestionsController.deleteQuestion);
+  router.use(authMiddleware.Protect);
+  
+  router.get('/', (req, res) => questionsController.getAllQuestions(req, res));
+  router.get('/:id', (req, res) => questionsController.getQuestionById(req, res));
+  router.post('/', (req, res) => questionsController.createQuestion(req, res));
+  router.put('/update/:id', (req, res) => questionsController.updateQuestion(req, res));
+  router.patch('/:id/status', (req, res) => questionsController.toggleQuestionStatus(req, res));
+  router.delete('/delete/:id', (req, res) => questionsController.deleteQuestion(req, res));
 
-module.exports = router;
+  return router;
+}
+
+module.exports = createQuestionsRoutes;

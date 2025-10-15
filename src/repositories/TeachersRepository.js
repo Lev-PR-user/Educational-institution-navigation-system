@@ -1,100 +1,102 @@
-const pool = require('../config/db');
+const sequelize = require('../config/db');
 
 class TeachersRepository {
     async findAllWithDetails() {
-        const query = `
-            SELECT 
-                t.teacher_id,
-                t.name_teacher, 
-                t.position, 
-                t.photo_url, 
-                l.room_number as room, 
-                l.description as location_description,
-                f.floor_number
-            FROM teachers t
-            LEFT JOIN locations l ON t.location_id = l.location_id
-            LEFT JOIN floors f ON l.floor_number = f.floor_number
-            ORDER BY t.name_teacher;
-        `;
-        
-        const result = await pool.query(query);
-        return result.rows;
-    }
+    const result = await sequelize.models.teachers.findAll({
+        include: [
+            {
+                model: sequelize.models.locations,
+                as: 'location',
+                attributes: ['room_number', 'description'],
+                include: [
+                    {
+                        model: sequelize.models.floors,
+                        as: 'floor',
+                        attributes: ['floor_number']
+                    }
+                ]
+            }
+        ],
+        order: [['name_teacher', 'ASC']]
+    });
+    return result;
+}
 
-    async findById(teacher_id) {
-        const query = `
-            SELECT 
-                t.teacher_id,
-                t.name_teacher, 
-                t.position, 
-                t.photo_url, 
-                l.room_number as room, 
-                l.description as location_description,
-                f.floor_number
-            FROM teachers t
-            LEFT JOIN locations l ON t.location_id = l.location_id
-            LEFT JOIN floors f ON l.floor_number = f.floor_number
-            WHERE t.teacher_id = $1
-        `;
-        
-        const result = await pool.query(query, [teacher_id]);
-        return result.rows[0] || null;
-    }
+   async findById(teacher_id) {
+    const result = await sequelize.models.teachers.findOne({
+        include: [
+            {
+                model: sequelize.models.locations,
+                as: 'location',
+                include: [
+                    {
+                        model: sequelize.models.floors,
+                        as: 'floor'
+                    }
+                ]
+            }
+        ],
+        where: { teacher_id }
+    });
+    
+    return result;
+}
 
     async create(teacherData) {
         const { name_teacher, position, photo_url, location_id } = teacherData;
         
-        const result = await pool.query(
-            `INSERT INTO teachers (name_teacher, position, photo_url, location_id) 
-             VALUES ($1, $2, $3, $4) RETURNING *`,
-            [name_teacher, position, photo_url, location_id || null]
-        );
+        const result = await sequelize.models.teachers.create({
+            name_teacher,
+            position,
+            photo_url,
+            location_id: location_id || null
+        });
         
-        return result.rows[0];
+        return result;
     }
 
     async update(teacher_id, teacherData) {
         const { name_teacher, position, photo_url, location_id } = teacherData;
         
-        const result = await pool.query(
-            `UPDATE teachers 
-             SET name_teacher = COALESCE($1, name_teacher),
-                 position = COALESCE($2, position),
-                 photo_url = COALESCE($3, photo_url),
-                 location_id = COALESCE($4, location_id)
-             WHERE teacher_id = $5
-             RETURNING *`,
-            [name_teacher, position, photo_url, location_id, teacher_id]
-        );
+        await sequelize.models.teachers.update({
+            name_teacher,
+            position,
+            photo_url,
+            location_id
+        }, {
+            where: { teacher_id }
+        });
+
+        const updatedTeacher = await sequelize.models.teachers.findOne({
+            where: { teacher_id }
+        });
         
-        return result.rows[0] || null;
+        return updatedTeacher;
     }
 
     async delete(teacher_id) {
-        const result = await pool.query(
-            'DELETE FROM teachers WHERE teacher_id = $1 RETURNING *',
-            [teacher_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.teachers.destroy({
+            where: { teacher_id }
+        });
+        return result > 0;
     }
 
     async exists(teacher_id) {
-        const result = await pool.query(
-            'SELECT teacher_id FROM teachers WHERE teacher_id = $1',
-            [teacher_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.teachers.findOne({
+            where: { teacher_id },
+            attributes: ['teacher_id']
+        });
+        return result !== null;
     }
 
     async locationExists(location_id) {
-        if (!location_id) return true; // location_id может быть null
         
-        const result = await pool.query(
-            'SELECT location_id FROM locations WHERE location_id = $1',
-            [location_id]
-        );
-        return result.rows.length > 0;
+        const result = await sequelize.models.locations.findOne({
+            where: { location_id },
+            attributes: ['location_id']
+        });
+        return result !== null;
     }
 }
 
-module.exports = new TeachersRepository();
+module.exports =  TeachersRepository;

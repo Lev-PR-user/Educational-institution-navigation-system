@@ -82,4 +82,4 @@ class LocationsController {
     }
 }
 
-module.exports = new LocationsController();
+module.exports =  LocationsController;

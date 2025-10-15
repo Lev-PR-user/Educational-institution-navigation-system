@@ -1,19 +1,22 @@
 const express = require('express');
-const router = express.Router();
-const RoomsController = require('../controllers/RoomsController');
-const authMiddleware = require('../middleware/authMiddleware');
-const checkAdmin = require('../middleware/checkAdmin');
 
+function createRoomRoutes(roomsController, authMiddleware, checkAdmin) {
+  const router = express.Router();
 
-router.use(authMiddleware.Protect);
-router.get('/', RoomsController.getAllRooms);
-router.get('/:RoomNumber', RoomsController.getRoomByNumber);
-router.get('/location/:locationId', RoomsController.getRoomsByLocation);
+  // Защищенные маршруты (для всех авторизованных пользователей)
+  router.use(authMiddleware.Protect);
+  
+  router.get('/', (req, res) => roomsController.getAllRooms(req, res));
+  router.get('/:RoomNumber', (req, res) => roomsController.getRoomByNumber(req, res));
+  router.get('/location/:locationId', (req, res) => roomsController.getRoomsByLocation(req, res));
 
-router.use(authMiddleware.Protect);
-router.use(checkAdmin);
-router.post('/', RoomsController.createRoom);
-router.put('/:RoomNumber', RoomsController.updateRoom);
-router.delete('/:RoomNumber',  RoomsController.deleteRoom);
+  // Защищенные маршруты только для администраторов
+  router.use(checkAdmin);
+  router.post('/', (req, res) => roomsController.createRoom(req, res));
+  router.put('/update/:RoomNumber', (req, res) => roomsController.updateRoom(req, res));
+  router.delete('/delete/:RoomNumber', (req, res) => roomsController.deleteRoom(req, res));
 
-module.exports = router;
+  return router;
+}
+
+module.exports = createRoomRoutes;

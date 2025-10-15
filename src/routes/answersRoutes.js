@@ -1,13 +1,18 @@
 const express = require('express');
-const router = express.Router();
-const AnswersController = require('../controllers/AnswersController');
-const authMiddleware = require('../middleware/authMiddleware');
 
-router.use(authMiddleware.Protect);
-router.get('/question/:questionId', AnswersController.getAnswersByQuestion);
-router.post('/', AnswersController.createAnswer);
-router.put('/:id', AnswersController.updateAnswer);
-router.patch('/:id/solution', AnswersController.markAsSolution);
-router.delete('/:id', AnswersController.deleteAnswer);
+function createAnswersRoutes(answersController, authMiddleware) {
+  const router = express.Router();
 
-module.exports = router;
+  // Защищенные маршруты (для всех авторизованных пользователей)
+  router.use(authMiddleware.Protect);
+  
+  router.get('/question/:questionId', (req, res) => answersController.getAnswersByQuestion(req, res));
+  router.post('/', (req, res) => answersController.createAnswer(req, res));
+  router.put('/update/:id', (req, res) => answersController.updateAnswer(req, res));
+  router.patch('/:id/solution', (req, res) => answersController.markAsSolution(req, res));
+  router.delete('/delete/:id', (req, res) => answersController.deleteAnswer(req, res));
+
+  return router;
+}
+
+module.exports = createAnswersRoutes;

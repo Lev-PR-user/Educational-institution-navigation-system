@@ -82,4 +82,4 @@ class AdministrationService{
     }
 }
 
-module.exports = new AdministrationService();
+module.exports =  AdministrationService;

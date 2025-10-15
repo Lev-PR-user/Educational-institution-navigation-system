@@ -91,4 +91,4 @@ class TeachersService {
     }
 }
 
-module.exports = new TeachersService();
+module.exports =  TeachersService;

@@ -72,4 +72,4 @@ class ClubsController {
     }
 }
 
-module.exports = new ClubsController();
+module.exports =  ClubsController;
