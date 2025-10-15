@@ -211,7 +211,7 @@ describe('QuestionsService', () => {
 
         it('should throw error when user is not author', async () => {
             // Arrange
-            const userId = 2; // Different user
+            const userId = 2;
             QuestionsValidator.validateId.mockReturnValue(true);
             QuestionsValidator.validateUpdateData.mockReturnValue(true);
             QuestionsRepository.exists.mockResolvedValue(true);
@@ -279,7 +279,7 @@ describe('QuestionsService', () => {
 
         it('should delete question successfully when user is admin', async () => {
             // Arrange
-            const userId = 2; // Not author but admin
+            const userId = 2; 
             QuestionsValidator.validateId.mockReturnValue(true);
             QuestionsRepository.exists.mockResolvedValue(true);
             QuestionsRepository.isAuthor.mockResolvedValue(false);
