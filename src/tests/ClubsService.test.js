@@ -35,14 +35,12 @@ describe('ContactsService', () => {
         updated_at: '2023-01-01T00:00:00.000Z'
     };
 
-    // Убираем неиспользуемую переменную из этого блока
     beforeEach(() => {
         contactsService = new ContactsService();
         jest.clearAllMocks();
     });
 
     describe('getAllContacts', () => {
-        // Объявляем переменную только в том тесте, где она используется
         const mockContactWithAdminInfo = {
             ...mockContact,
             administration: {
@@ -85,7 +83,6 @@ describe('ContactsService', () => {
     });
 
     describe('getContactById', () => {
-        // Объявляем переменную только в том тесте, где она используется
         const mockContactWithAdminInfo = {
             ...mockContact,
             administration: {

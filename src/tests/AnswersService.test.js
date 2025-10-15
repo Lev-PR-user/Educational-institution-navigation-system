@@ -308,7 +308,7 @@ describe('AnswersService', () => {
             const mockAnswerInfo = {
                 id: answerId,
                 question_id: 1,
-                question_author_id: 1 // Different from userId
+                question_author_id: 1
             };
 
             AnswersValidator.validateId.mockReturnValue(true);
