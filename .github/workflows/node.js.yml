@@ -1,72 +1,186 @@
-name: Node.js CI
+name: CI/CD for Node.js app
 
 on:
+
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
+    tags: [ '*\.*\.*' ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
 
+  build-production:
+    name: Build Production App
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout GitHub Repository
+      uses: actions/checkout@v2
+    - name: Use Node.js 14.18
+      uses: actions/setup-node@v2
+      with:
+        node-version: 14.18
+        cache: 'npm'
+    - name: Install npm packages
+      run: npm install
+    - name: Build Production App Bundle
+      run: npm run webpack-production
+    - name: Upload Production App Bundle to Build Artefacts
+      uses: actions/upload-artifact@v1
+      with:
+        name: app-bundle
+        path: public/app-bundle.js
+
+  run-unit-tests:
+    name: Unit Tests
+    needs: build-production
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
-
-    services:
-      postgres:
-        image: postgres:13
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
+        node-version: [12.x, 13.x, 14.x, 15.x, 16.x]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+        os: [ubuntu-latest, ubuntu-20.04, ubuntu-18.04]
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout GitHub Repository
+      uses: actions/checkout@v2
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Create .env file
-      run: |
-        echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db" >> .env
-        echo "JWT_SECRET=test-secret-key" >> .env
-        echo "NODE_ENV=test" >> .env
-    
-    - name: Run tests
-      run: npm test
-    
-    - name: Run linting
-      run: npm run lint
-
-  build:
-    runs-on: ubuntu-latest
-    needs: test
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    - run: npm install
+    - run: echo Running Jest Unit tests
+    - run: npm test
+    - name: Upload Test Report Artefact
+      uses: actions/upload-artifact@v1
       with:
-        node-version: '20.x'
+        name: test-results
+        path: public/test-results.xml
+    - name: Upload Test Coverage Report Artefact
+      uses: actions/upload-artifact@v1
+      with:
+        name: test-coverage
+        path: public/coverage
+
+  run-code-inspection:
+    name: Code Inspection
+    needs: build-production
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout GitHub Repository
+      uses: actions/checkout@v2
+    - name: Use Node.js 14.18
+      uses: actions/setup-node@v2
+      with:
+        node-version: 14.18
         cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Build project
-      run: npm run build
+    - run: npm install
+    - name: Run ESLint Scan on app sourcecode
+      run: npm run eslint-scan
+    - name: Generate ESLint Report from app sourcecode scan
+      run: npm run eslint-report
+    - name: Upload Linter Report Artefact
+      uses: actions/upload-artifact@v1
+      with:
+        name: linter-results
+        path: public/linter-results.xml
+
+  generate-jsdoc:
+    name: Generate Documentation
+    needs: [run-unit-tests, run-code-inspection]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout GitHub Repository
+      uses: actions/checkout@v2
+    - name: Use Node.js 14.18
+      uses: actions/setup-node@v2
+      with:
+        node-version: 14.18
+        cache: 'npm'
+    - run: npm install
+    - run: npm run jsdoc
+    - name: Upload JSDoc documentation
+      uses: actions/upload-artifact@v1
+      with:
+        name: jsdoc-sourcecode-documentation
+        path: public/jsdoc
+
+  create-github-release:
+    name: Create GitHub Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: generate-jsdoc
+    runs-on: ubuntu-latest
+    steps:
+    - name: Parse release version from git tag
+      run: echo "release-version=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+    - name: Print out parsed release version
+      run: echo Parsed release version is:${{ env.release-version }}
+    - name: Download Production Build Artefact
+      uses: actions/download-artifact@v1
+      with:
+        name: app-bundle
+        path: public
+    - name: Create local directory to extract sourcecode documentation
+      run: mkdir public/jsdoc-sourcecode-documentation
+    - name: Download Sourcecode Documentation
+      uses: actions/download-artifact@v1
+      with:
+        name: jsdoc-sourcecode-documentation
+        path: public/jsdoc-sourcecode-documentation
+    - name: Delete Production Build Artefact
+      uses: geekyeggo/delete-artifact@v1
+      with:
+        name: app-bundle
+    - name: Delete Sourcecode Documentation Artefact
+      uses: geekyeggo/delete-artifact@v1
+      with:
+        name: jsdoc-sourcecode-documentation
+    - name: Rename Production Build Artefact by inserting release version
+      run: mv "public/app-bundle.js" "public/app-bundle-v${{ env.release-version }}.js"
+    - name: Rename Sourcecode Documentation Artefact by inserting release version
+      run: mv "public/jsdoc-sourcecode-documentation" "public/jsdoc-sourcecode-documentation-v${{ env.release-version }}"
+    - name: Upload Renamed Production Build Artefact
+      uses: actions/upload-artifact@v1
+      with:
+        name: app-bundle-v${{ env.release-version }}
+        path: public/app-bundle-v${{ env.release-version }}.js
+    - name: Upload Renamed Sourcecode Documentation Artefact
+      uses: actions/upload-artifact@v1
+      with:
+        name: jsdoc-sourcecode-documentation-v${{ env.release-version }}
+        path: public/jsdoc-sourcecode-documentation-v${{ env.release-version }}
+    - name: Create GitHub Release
+      uses: ncipollo/release-action@v1
+      with:
+        name: Release v${{ env.release-version }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ env.release-version }}
+        artifacts: 'public/app-bundle-v${{ env.release-version }}.js,public/jsdoc-sourcecode-documentation-v${{ env.release-version }}'
+        allowUpdates: true
+        omitBody: true
+        removeArtifacts: true
+
+  docker-job:
+    runs-on: ubuntu-latest
+    needs: build-production
+    name: Dockerize Production App
+    steps:
+      - name: Checkout GitHub Repository
+        uses: actions/checkout@v2
+      - name: Download Production Build Artefact
+        uses: actions/download-artifact@v1
+        with:
+          name: app-bundle
+          path: public
+      - name: Build Docker Image from Dockerfile
+        run: docker build . --tag express-js-app:14.18
+      - name: Create and run Docker Container from Docker Image
+        run: docker run --name express-js-app-container --detach --publish 45678:8181 --tty express-js-app:14.18
+      - name: Sleep 5 seconds (wait till Express.js app is running)
+        run: sleep 5s
+      - name: Send a cURL request to the Docker container
+        run: curl --connect-timeout 5 -i 0.0.0.0:45678/user
+      - name: Stop the Docker Container
+        run: docker stop express-js-app-container
+      - name: Wait until Docker Container is down
+        run: docker wait express-js-app-container

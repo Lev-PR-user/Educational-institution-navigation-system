@@ -1,19 +1,11 @@
-FROM node:20-alpine
+# base image for this container
+FROM node:14
 
-WORKDIR /app
+# copy 'public' directory into the container
+COPY public/* public/
 
-COPY package*.json ./
+# make container's port 8181 accessible to the outside
+EXPOSE 8181
 
-RUN npm ci --only=production
-
-COPY . .
-
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
-
-RUN chown -R nextjs:nodejs /app
-USER nextjs
-
-EXPOSE 3000
-
-CMD ["npm", "start"]
+# run the app bundle with node
+CMD [ "node", "./public/app-bundle.js" ]
