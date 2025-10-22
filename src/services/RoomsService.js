@@ -1,10 +1,11 @@
-const RoomsRepository = require('../repositories/RoomsRepository');
-const RoomsValidator = require('../validators/RoomsValidator')
-
 class RoomService {
+    constructor({ roomsValidator, roomsRepository }) {
+        this.roomsValidator = roomsValidator;
+        this.roomsRepository = roomsRepository;
+    }
     async getAllRooms() {
         try {
-            return await RoomsRepository.findAllWithDetails();
+            return await this.roomsRepository.findAllWithDetails();
         } catch (error) {
             throw new Error(`Failed to get rooms: ${error.message}`);
         }
@@ -12,9 +13,9 @@ class RoomService {
 
     async getRoomByNumber(room_number) {  
         try {
-            RoomsValidator.validateRoomNumber(room_number);
+            this.roomsValidator.validateRoomNumber(room_number);
             
-            const room = await RoomsRepository.findByNumber(room_number);
+            const room = await this.roomsRepository.findByNumber(room_number);
             if (!room) {
                 throw new Error('Room not found');
             }
@@ -27,9 +28,9 @@ class RoomService {
 
     async getRoomsByFloor(floor_number) { 
         try {
-            RoomsValidator.validateFloorNumber(floor_number);
+            this.roomsValidator.validateFloorNumber(floor_number);
             
-            return await RoomsRepository.findByFloorNumber(floor_number);
+            return await this.roomsRepository.findByFloorNumber(floor_number);
         } catch (error) {
             throw new Error(`Failed to get rooms by floor: ${error.message}`);
         }
@@ -37,14 +38,14 @@ class RoomService {
 
     async createRoom(roomData) {
         try {
-            RoomsValidator.validateCreateData(roomData);
+            this.roomsValidator.validateCreateData(roomData);
             
-            const roomExists = await RoomsRepository.exists(roomData.room_number);
+            const roomExists = await this.roomsRepository.exists(roomData.room_number);
             if (roomExists) {
                 throw new Error('Room with this number already exists');
             }
 
-            return await RoomsRepository.create(roomData);
+            return await this.roomsRepository.create(roomData);
         } catch (error) {
             throw new Error(`Failed to create room: ${error.message}`);
         }
@@ -52,16 +53,16 @@ class RoomService {
 
     async updateRoom(room_number, roomData) {
         try {
-            RoomsValidator.validateRoomNumber(room_number);
-            RoomsValidator.validateUpdateData(roomData);
+            this.roomsValidator.validateRoomNumber(room_number);
+            this.roomsValidator.validateUpdateData(roomData);
             
-            const roomExists = await RoomsRepository.exists(room_number);
+            const roomExists = await this.roomsRepository.exists(room_number);
             if (!roomExists) {
                 throw new Error('Room not found');
             }
 
             if (roomData.room_number) {
-                const roomExists = await RoomsRepository.existsByNumber(
+                const roomExists = await this.roomsRepository.existsByNumber(
                     roomData.room_number, 
                     room_number
                 );
@@ -70,7 +71,7 @@ class RoomService {
                 }
             }
 
-            const updatedRoom = await RoomsRepository.update(room_number, roomData);
+            const updatedRoom = await this.roomsRepository.update(room_number, roomData);
             if (!updatedRoom) {
                 throw new Error('Failed to update room');
             }
@@ -83,14 +84,14 @@ class RoomService {
 
     async deleteRoom(room_number) {
         try {
-            RoomsValidator.validateRoomNumber(room_number);
+            this.roomsValidator.validateRoomNumber(room_number);
             
-            const roomExists = await RoomsRepository.exists(room_number);
+            const roomExists = await this.roomsRepository.exists(room_number);
             if (!roomExists) {
                 throw new Error('Room not found');
             }
             
-            const isDeleted = await RoomsRepository.delete(room_number);
+            const isDeleted = await this.roomsRepository.delete(room_number);
             if (!isDeleted) {
                 throw new Error('Failed to delete room');
             }

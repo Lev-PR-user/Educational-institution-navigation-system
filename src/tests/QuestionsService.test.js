@@ -1,31 +1,9 @@
 const QuestionsService = require('../services/QuestionsService');
 
-// Мокаем зависимости ДО импорта сервиса
-jest.mock('../repositories/QuestionsRepository', () => ({
-    findAllWithDetails: jest.fn(),
-    findById: jest.fn(),
-    exists: jest.fn(),
-    isAuthor: jest.fn(),
-    getUserRole: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    updateStatus: jest.fn(),
-    delete: jest.fn()
-}));
-
-jest.mock('../validators/QuestionsValidator', () => ({
-    validateId: jest.fn(),
-    validateCreateData: jest.fn(),
-    validateUpdateData: jest.fn(),
-    validateStatusData: jest.fn()
-}));
-
-// Теперь импортируем моки
-const QuestionsRepository = require('../repositories/QuestionsRepository');
-const QuestionsValidator = require('../validators/QuestionsValidator');
-
 describe('QuestionsService', () => {
     let questionsService;
+    let mockRepository;
+    let mockValidator;
     
     const mockQuestion = {
         question_id: 1,
@@ -55,7 +33,32 @@ describe('QuestionsService', () => {
     };
 
     beforeEach(() => {
-        questionsService = new QuestionsService();
+        // Создаем моки для зависимостей
+        mockRepository = {
+            findAllWithDetails: jest.fn(),
+            findById: jest.fn(),
+            exists: jest.fn(),
+            isAuthor: jest.fn(),
+            getUserRole: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            updateStatus: jest.fn(),
+            delete: jest.fn()
+        };
+
+        mockValidator = {
+            validateId: jest.fn(),
+            validateCreateData: jest.fn(),
+            validateUpdateData: jest.fn(),
+            validateStatusData: jest.fn()
+        };
+
+        // Создаем экземпляр сервиса с передачей зависимостей
+        questionsService = new QuestionsService({
+            questionsRepository: mockRepository,
+            questionsValidator: mockValidator
+        });
+
         jest.clearAllMocks();
     });
 
@@ -66,20 +69,20 @@ describe('QuestionsService', () => {
                 mockQuestionWithDetails, 
                 { ...mockQuestionWithDetails, question_id: 2, title: 'React vs Vue?' }
             ];
-            QuestionsRepository.findAllWithDetails.mockResolvedValue(mockQuestions);
+            mockRepository.findAllWithDetails.mockResolvedValue(mockQuestions);
 
             // Act
             const result = await questionsService.getAllQuestions();
 
             // Assert
-            expect(QuestionsRepository.findAllWithDetails).toHaveBeenCalled();
+            expect(mockRepository.findAllWithDetails).toHaveBeenCalled();
             expect(result).toEqual(mockQuestions);
         });
 
         it('should throw error when repository fails', async () => {
             // Arrange
             const repositoryError = new Error('Database connection failed');
-            QuestionsRepository.findAllWithDetails.mockRejectedValue(repositoryError);
+            mockRepository.findAllWithDetails.mockRejectedValue(repositoryError);
 
             // Act & Assert
             await expect(questionsService.getAllQuestions())
@@ -91,22 +94,22 @@ describe('QuestionsService', () => {
     describe('getQuestionById', () => {
         it('should return question by id successfully', async () => {
             // Arrange
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsRepository.findById.mockResolvedValue(mockQuestionWithDetails);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.findById.mockResolvedValue(mockQuestionWithDetails);
 
             // Act
             const result = await questionsService.getQuestionById(1);
 
             // Assert
-            expect(QuestionsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(QuestionsRepository.findById).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockRepository.findById).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockQuestionWithDetails);
         });
 
         it('should throw error when question not found', async () => {
             // Arrange
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsRepository.findById.mockResolvedValue(null);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.findById.mockResolvedValue(null);
 
             // Act & Assert
             await expect(questionsService.getQuestionById(999))
@@ -116,7 +119,7 @@ describe('QuestionsService', () => {
 
         it('should throw error when id validation fails', async () => {
             // Arrange
-            QuestionsValidator.validateId.mockImplementation(() => {
+            mockValidator.validateId.mockImplementation(() => {
                 throw new Error('Invalid question ID');
             });
 
@@ -125,7 +128,7 @@ describe('QuestionsService', () => {
                 .rejects
                 .toThrow('Failed to get question: Invalid question ID');
             
-            expect(QuestionsRepository.findById).not.toHaveBeenCalled();
+            expect(mockRepository.findById).not.toHaveBeenCalled();
         });
     });
 
@@ -139,21 +142,21 @@ describe('QuestionsService', () => {
 
         it('should create question successfully', async () => {
             // Arrange
-            QuestionsValidator.validateCreateData.mockReturnValue(true);
-            QuestionsRepository.create.mockResolvedValue({ ...mockQuestion, ...validQuestionData });
+            mockValidator.validateCreateData.mockReturnValue(true);
+            mockRepository.create.mockResolvedValue({ ...mockQuestion, ...validQuestionData });
 
             // Act
             const result = await questionsService.createQuestion(validQuestionData);
 
             // Assert
-            expect(QuestionsValidator.validateCreateData).toHaveBeenCalledWith(validQuestionData);
-            expect(QuestionsRepository.create).toHaveBeenCalledWith(validQuestionData);
+            expect(mockValidator.validateCreateData).toHaveBeenCalledWith(validQuestionData);
+            expect(mockRepository.create).toHaveBeenCalledWith(validQuestionData);
             expect(result).toEqual({ ...mockQuestion, ...validQuestionData });
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
-            QuestionsValidator.validateCreateData.mockImplementation(() => {
+            mockValidator.validateCreateData.mockImplementation(() => {
                 throw new Error('Invalid question data');
             });
 
@@ -162,7 +165,7 @@ describe('QuestionsService', () => {
                 .rejects
                 .toThrow('Failed to create question: Invalid question data');
             
-            expect(QuestionsRepository.create).not.toHaveBeenCalled();
+            expect(mockRepository.create).not.toHaveBeenCalled();
         });
     });
 
@@ -175,60 +178,60 @@ describe('QuestionsService', () => {
         it('should update question successfully when user is author', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsValidator.validateUpdateData.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(true);
-            QuestionsRepository.isAuthor.mockResolvedValue(true);
-            QuestionsRepository.update.mockResolvedValue({ ...mockQuestion, ...updateData });
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.isAuthor.mockResolvedValue(true);
+            mockRepository.update.mockResolvedValue({ ...mockQuestion, ...updateData });
 
             // Act
             const result = await questionsService.updateQuestion(1, updateData, userId);
 
             // Assert
-            expect(QuestionsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(QuestionsValidator.validateUpdateData).toHaveBeenCalledWith(updateData);
-            expect(QuestionsRepository.exists).toHaveBeenCalledWith(1);
-            expect(QuestionsRepository.isAuthor).toHaveBeenCalledWith(1, userId);
-            expect(QuestionsRepository.update).toHaveBeenCalledWith(1, updateData);
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateUpdateData).toHaveBeenCalledWith(updateData);
+            expect(mockRepository.exists).toHaveBeenCalledWith(1);
+            expect(mockRepository.isAuthor).toHaveBeenCalledWith(1, userId);
+            expect(mockRepository.update).toHaveBeenCalledWith(1, updateData);
             expect(result).toEqual({ ...mockQuestion, ...updateData });
         });
 
         it('should throw error when question not found', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsValidator.validateUpdateData.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(questionsService.updateQuestion(999, updateData, userId))
                 .rejects
                 .toThrow('Failed to update question: Question not found');
             
-            expect(QuestionsRepository.isAuthor).not.toHaveBeenCalled();
-            expect(QuestionsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.isAuthor).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when user is not author', async () => {
             // Arrange
             const userId = 2;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsValidator.validateUpdateData.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(true);
-            QuestionsRepository.isAuthor.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.isAuthor.mockResolvedValue(false);
 
             // Act & Assert
             await expect(questionsService.updateQuestion(1, updateData, userId))
                 .rejects
                 .toThrow('Failed to update question: You can only edit your own questions');
             
-            expect(QuestionsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockImplementation(() => {
+            mockValidator.validateId.mockImplementation(() => {
                 throw new Error('Invalid question ID');
             });
 
@@ -237,18 +240,18 @@ describe('QuestionsService', () => {
                 .rejects
                 .toThrow('Failed to update question: Invalid question ID');
             
-            expect(QuestionsRepository.exists).not.toHaveBeenCalled();
-            expect(QuestionsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.exists).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when update fails', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsValidator.validateUpdateData.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(true);
-            QuestionsRepository.isAuthor.mockResolvedValue(true);
-            QuestionsRepository.update.mockResolvedValue(null);
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.isAuthor.mockResolvedValue(true);
+            mockRepository.update.mockResolvedValue(null);
 
             // Act & Assert
             await expect(questionsService.updateQuestion(1, updateData, userId))
@@ -261,81 +264,81 @@ describe('QuestionsService', () => {
         it('should delete question successfully when user is author', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(true);
-            QuestionsRepository.isAuthor.mockResolvedValue(true);
-            QuestionsRepository.delete.mockResolvedValue(true);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.isAuthor.mockResolvedValue(true);
+            mockRepository.delete.mockResolvedValue(true);
 
             // Act
             const result = await questionsService.deleteQuestion(1, userId);
 
             // Assert
-            expect(QuestionsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(QuestionsRepository.exists).toHaveBeenCalledWith(1);
-            expect(QuestionsRepository.isAuthor).toHaveBeenCalledWith(1, userId);
-            expect(QuestionsRepository.delete).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockRepository.exists).toHaveBeenCalledWith(1);
+            expect(mockRepository.isAuthor).toHaveBeenCalledWith(1, userId);
+            expect(mockRepository.delete).toHaveBeenCalledWith(1);
             expect(result).toBe(true);
         });
 
         it('should delete question successfully when user is admin', async () => {
             // Arrange
             const userId = 2; 
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(true);
-            QuestionsRepository.isAuthor.mockResolvedValue(false);
-            QuestionsRepository.getUserRole.mockResolvedValue('admin');
-            QuestionsRepository.delete.mockResolvedValue(true);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.isAuthor.mockResolvedValue(false);
+            mockRepository.getUserRole.mockResolvedValue('admin');
+            mockRepository.delete.mockResolvedValue(true);
 
             // Act
             const result = await questionsService.deleteQuestion(1, userId);
 
             // Assert
-            expect(QuestionsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(QuestionsRepository.exists).toHaveBeenCalledWith(1);
-            expect(QuestionsRepository.isAuthor).toHaveBeenCalledWith(1, userId);
-            expect(QuestionsRepository.getUserRole).toHaveBeenCalledWith(userId);
-            expect(QuestionsRepository.delete).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockRepository.exists).toHaveBeenCalledWith(1);
+            expect(mockRepository.isAuthor).toHaveBeenCalledWith(1, userId);
+            expect(mockRepository.getUserRole).toHaveBeenCalledWith(userId);
+            expect(mockRepository.delete).toHaveBeenCalledWith(1);
             expect(result).toBe(true);
         });
 
         it('should throw error when question not found', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(questionsService.deleteQuestion(999, userId))
                 .rejects
                 .toThrow('Failed to delete question: Question not found');
             
-            expect(QuestionsRepository.isAuthor).not.toHaveBeenCalled();
-            expect(QuestionsRepository.delete).not.toHaveBeenCalled();
+            expect(mockRepository.isAuthor).not.toHaveBeenCalled();
+            expect(mockRepository.delete).not.toHaveBeenCalled();
         });
 
         it('should throw error when user is not author and not admin', async () => {
             // Arrange
             const userId = 3;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(true);
-            QuestionsRepository.isAuthor.mockResolvedValue(false);
-            QuestionsRepository.getUserRole.mockResolvedValue('user');
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.isAuthor.mockResolvedValue(false);
+            mockRepository.getUserRole.mockResolvedValue('user');
 
             // Act & Assert
             await expect(questionsService.deleteQuestion(1, userId))
                 .rejects
                 .toThrow('Failed to delete question: You can only delete your own questions');
             
-            expect(QuestionsRepository.delete).not.toHaveBeenCalled();
+            expect(mockRepository.delete).not.toHaveBeenCalled();
         });
 
         it('should throw error when deletion fails', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(true);
-            QuestionsRepository.isAuthor.mockResolvedValue(true);
-            QuestionsRepository.delete.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.isAuthor.mockResolvedValue(true);
+            mockRepository.delete.mockResolvedValue(false);
 
             // Act & Assert
             await expect(questionsService.deleteQuestion(1, userId))
@@ -346,7 +349,7 @@ describe('QuestionsService', () => {
         it('should throw error when id validation fails', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockImplementation(() => {
+            mockValidator.validateId.mockImplementation(() => {
                 throw new Error('Invalid question ID');
             });
 
@@ -355,8 +358,8 @@ describe('QuestionsService', () => {
                 .rejects
                 .toThrow('Failed to delete question: Invalid question ID');
             
-            expect(QuestionsRepository.exists).not.toHaveBeenCalled();
-            expect(QuestionsRepository.delete).not.toHaveBeenCalled();
+            expect(mockRepository.exists).not.toHaveBeenCalled();
+            expect(mockRepository.delete).not.toHaveBeenCalled();
         });
     });
 
@@ -368,60 +371,60 @@ describe('QuestionsService', () => {
         it('should toggle question status successfully when user is author', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsValidator.validateStatusData.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(true);
-            QuestionsRepository.isAuthor.mockResolvedValue(true);
-            QuestionsRepository.updateStatus.mockResolvedValue({ ...mockQuestion, is_closed: true });
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateStatusData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.isAuthor.mockResolvedValue(true);
+            mockRepository.updateStatus.mockResolvedValue({ ...mockQuestion, is_closed: true });
 
             // Act
             const result = await questionsService.toggleQuestionStatus(1, statusData, userId);
 
             // Assert
-            expect(QuestionsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(QuestionsValidator.validateStatusData).toHaveBeenCalledWith(statusData);
-            expect(QuestionsRepository.exists).toHaveBeenCalledWith(1);
-            expect(QuestionsRepository.isAuthor).toHaveBeenCalledWith(1, userId);
-            expect(QuestionsRepository.updateStatus).toHaveBeenCalledWith(1, true);
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateStatusData).toHaveBeenCalledWith(statusData);
+            expect(mockRepository.exists).toHaveBeenCalledWith(1);
+            expect(mockRepository.isAuthor).toHaveBeenCalledWith(1, userId);
+            expect(mockRepository.updateStatus).toHaveBeenCalledWith(1, true);
             expect(result.is_closed).toBe(true);
         });
 
         it('should throw error when question not found', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsValidator.validateStatusData.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateStatusData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(questionsService.toggleQuestionStatus(999, statusData, userId))
                 .rejects
                 .toThrow('Failed to toggle question status: Question not found');
             
-            expect(QuestionsRepository.isAuthor).not.toHaveBeenCalled();
-            expect(QuestionsRepository.updateStatus).not.toHaveBeenCalled();
+            expect(mockRepository.isAuthor).not.toHaveBeenCalled();
+            expect(mockRepository.updateStatus).not.toHaveBeenCalled();
         });
 
         it('should throw error when user is not author', async () => {
             // Arrange
             const userId = 2;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsValidator.validateStatusData.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(true);
-            QuestionsRepository.isAuthor.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateStatusData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.isAuthor.mockResolvedValue(false);
 
             // Act & Assert
             await expect(questionsService.toggleQuestionStatus(1, statusData, userId))
                 .rejects
                 .toThrow('Failed to toggle question status: You can only edit your own questions');
             
-            expect(QuestionsRepository.updateStatus).not.toHaveBeenCalled();
+            expect(mockRepository.updateStatus).not.toHaveBeenCalled();
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockImplementation(() => {
+            mockValidator.validateId.mockImplementation(() => {
                 throw new Error('Invalid question ID');
             });
 
@@ -430,18 +433,18 @@ describe('QuestionsService', () => {
                 .rejects
                 .toThrow('Failed to toggle question status: Invalid question ID');
             
-            expect(QuestionsRepository.exists).not.toHaveBeenCalled();
-            expect(QuestionsRepository.updateStatus).not.toHaveBeenCalled();
+            expect(mockRepository.exists).not.toHaveBeenCalled();
+            expect(mockRepository.updateStatus).not.toHaveBeenCalled();
         });
 
         it('should throw error when status update fails', async () => {
             // Arrange
             const userId = 1;
-            QuestionsValidator.validateId.mockReturnValue(true);
-            QuestionsValidator.validateStatusData.mockReturnValue(true);
-            QuestionsRepository.exists.mockResolvedValue(true);
-            QuestionsRepository.isAuthor.mockResolvedValue(true);
-            QuestionsRepository.updateStatus.mockResolvedValue(null);
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateStatusData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.isAuthor.mockResolvedValue(true);
+            mockRepository.updateStatus.mockResolvedValue(null);
 
             // Act & Assert
             await expect(questionsService.toggleQuestionStatus(1, statusData, userId))

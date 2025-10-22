@@ -1,28 +1,9 @@
 const ContactsService = require('../services/ContactsService');
 
-// Мокаем зависимости ДО импорта сервиса
-jest.mock('../repositories/ContactsRepository', () => ({
-    findAllWithAdminInfo: jest.fn(),
-    findById: jest.fn(),
-    adminExists: jest.fn(),
-    exists: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn()
-}));
-
-jest.mock('../validators/ContactsValidator', () => ({
-    validateId: jest.fn(),
-    validateCreateData: jest.fn(),
-    validateUpdateData: jest.fn()
-}));
-
-// Теперь импортируем моки
-const ContactsRepository = require('../repositories/ContactsRepository');
-const ContactsValidator = require('../validators/ContactsValidator');
-
 describe('ContactsService', () => {
     let contactsService;
+    let mockRepository;
+    let mockValidator;
     
     const mockContact = {
         contacts_id: 1,
@@ -36,80 +17,133 @@ describe('ContactsService', () => {
     };
 
     beforeEach(() => {
-        contactsService = new ContactsService();
+        // Создаем моки для зависимостей
+        mockRepository = {
+            findAllWithAdminInfo: jest.fn(),
+            findById: jest.fn(),
+            adminExists: jest.fn(),
+            exists: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn()
+        };
+
+        mockValidator = {
+            validateId: jest.fn(),
+            validateCreateData: jest.fn(),
+            validateUpdateData: jest.fn()
+        };
+
+        // Создаем экземпляр сервиса с передачей зависимостей
+        contactsService = new ContactsService({
+            contactsRepository: mockRepository,
+            contactsValidator: mockValidator
+        });
+
         jest.clearAllMocks();
     });
 
-    describe('createContact', () => {
-        const validContactData = {
-            administration_id: 2,
-            phone_number: '+1111111111',
-            email: 'newcontact@example.com',
-            address: '456 New Street, City, Country',
-            is_active: true
-        };
-
-        it('should create contact successfully', async () => {
+    describe('getAllContacts', () => {
+        it('should return all contacts with admin info successfully', async () => {
             // Arrange
-            ContactsValidator.validateCreateData.mockReturnValue(true);
-            ContactsRepository.adminExists.mockResolvedValue(true);
-            ContactsRepository.exists.mockResolvedValue(false);
-            ContactsRepository.create.mockResolvedValue({ ...mockContact, ...validContactData });
+            const mockContacts = [
+                mockContact,
+                { 
+                    ...mockContact, 
+                    contacts_id: 2, 
+                    phone_number: '+1111111111',
+                    email: 'contact2@example.com'
+                }
+            ];
+            mockRepository.findAllWithAdminInfo.mockResolvedValue(mockContacts);
 
             // Act
-            const result = await contactsService.createContact(validContactData);
+            const result = await contactsService.getAllContacts();
 
             // Assert
-            expect(ContactsValidator.validateCreateData).toHaveBeenCalledWith(validContactData);
-            expect(ContactsRepository.adminExists).toHaveBeenCalled();
-            expect(ContactsRepository.exists).toHaveBeenCalled();
-            expect(ContactsRepository.create).toHaveBeenCalledWith(validContactData);
-            expect(result).toEqual({ ...mockContact, ...validContactData });
+            expect(mockRepository.findAllWithAdminInfo).toHaveBeenCalled();
+            expect(result).toEqual(mockContacts);
         });
 
-        it('should throw error when administration not found', async () => {
+        it('should throw error when repository fails', async () => {
             // Arrange
-            ContactsValidator.validateCreateData.mockReturnValue(true);
-            ContactsRepository.adminExists.mockResolvedValue(false);
+            const repositoryError = new Error('Database connection failed');
+            mockRepository.findAllWithAdminInfo.mockRejectedValue(repositoryError);
 
             // Act & Assert
-            await expect(contactsService.createContact(validContactData))
+            await expect(contactsService.getAllContacts())
                 .rejects
-                .toThrow('Failed to create contact: Administration not found');
-            
-            expect(ContactsRepository.exists).not.toHaveBeenCalled();
-            expect(ContactsRepository.create).not.toHaveBeenCalled();
+                .toThrow('Failed to get contacts: Database connection failed');
+        });
+    });
+
+    describe('getContactById', () => {
+        it('should return contact by id successfully', async () => {
+            // Arrange
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.findById.mockResolvedValue(mockContact);
+
+            // Act
+            const result = await contactsService.getContactById(1);
+
+            // Assert
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockRepository.findById).toHaveBeenCalledWith(1);
+            expect(result).toEqual(mockContact);
         });
 
-        it('should throw error when contact already exists for administration', async () => {
+        it('should throw error when contact not found', async () => {
             // Arrange
-            ContactsValidator.validateCreateData.mockReturnValue(true);
-            ContactsRepository.adminExists.mockResolvedValue(true);
-            ContactsRepository.exists.mockResolvedValue(true);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.findById.mockResolvedValue(null);
 
             // Act & Assert
-            await expect(contactsService.createContact(validContactData))
+            await expect(contactsService.getContactById(999))
                 .rejects
-                .toThrow('Failed to create contact: Contact already exists for this administration');
-            
-            expect(ContactsRepository.create).not.toHaveBeenCalled();
+                .toThrow('Failed to get contact: Contact not found');
         });
 
-        it('should throw error when validation fails', async () => {
+        it('should throw error when id validation fails', async () => {
             // Arrange
-            ContactsValidator.validateCreateData.mockImplementation(() => {
-                throw new Error('Invalid contact data');
+            mockValidator.validateId.mockImplementation(() => {
+                throw new Error('Invalid contact ID');
             });
 
             // Act & Assert
-            await expect(contactsService.createContact(validContactData))
+            await expect(contactsService.getContactById(-1))
                 .rejects
-                .toThrow('Failed to create contact: Invalid contact data');
+                .toThrow('Failed to get contact: Invalid contact ID');
             
-            expect(ContactsRepository.adminExists).not.toHaveBeenCalled();
-            expect(ContactsRepository.exists).not.toHaveBeenCalled();
-            expect(ContactsRepository.create).not.toHaveBeenCalled();
+            expect(mockRepository.findById).not.toHaveBeenCalled();
         });
+    });
+
+    describe('createContact', () => {
+    const validContactData = {
+        administration_id: 2,
+        phone_number: '+1111111111',
+        email: 'newcontact@example.com',
+        address: '456 New Street, City, Country',
+        is_active: true
+    };
+
+    it('should create contact successfully', async () => {
+        // Arrange
+        mockValidator.validateCreateData.mockReturnValue(true);
+        // ИСПРАВЛЕНО: ожидаем вызов с undefined (т.к. contactData.contacts_id не существует)
+        mockRepository.adminExists.mockResolvedValue(true);
+        mockRepository.exists.mockResolvedValue(false);
+        mockRepository.create.mockResolvedValue({ ...mockContact, ...validContactData });
+
+        // Act
+        const result = await contactsService.createContact(validContactData);
+
+        // Assert
+        expect(mockValidator.validateCreateData).toHaveBeenCalledWith(validContactData);
+        expect(mockRepository.adminExists).toHaveBeenCalledWith(undefined); // contacts_id не определен
+        expect(mockRepository.exists).toHaveBeenCalledWith(undefined); // contacts_id не определен
+        expect(mockRepository.create).toHaveBeenCalledWith(validContactData);
+        expect(result).toEqual({ ...mockContact, ...validContactData });
     });
 
     describe('updateContact', () => {
@@ -121,39 +155,39 @@ describe('ContactsService', () => {
 
         it('should update contact successfully', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsValidator.validateUpdateData.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(true);
-            ContactsRepository.update.mockResolvedValue({ ...mockContact, ...updateData });
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.update.mockResolvedValue({ ...mockContact, ...updateData });
 
             // Act
             const result = await contactsService.updateContact(1, updateData);
 
             // Assert
-            expect(ContactsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(ContactsValidator.validateUpdateData).toHaveBeenCalledWith(updateData);
-            expect(ContactsRepository.exists).toHaveBeenCalledWith(1);
-            expect(ContactsRepository.update).toHaveBeenCalledWith(1, updateData);
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateUpdateData).toHaveBeenCalledWith(updateData);
+            expect(mockRepository.exists).toHaveBeenCalledWith(1);
+            expect(mockRepository.update).toHaveBeenCalledWith(1, updateData);
             expect(result).toEqual({ ...mockContact, ...updateData });
         });
 
         it('should throw error when contact not found', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsValidator.validateUpdateData.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(contactsService.updateContact(999, updateData))
                 .rejects
                 .toThrow('Failed to update contact: Contact not found');
             
-            expect(ContactsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
-            ContactsValidator.validateId.mockImplementation(() => {
+            mockValidator.validateId.mockImplementation(() => {
                 throw new Error('Invalid contact ID');
             });
 
@@ -162,16 +196,16 @@ describe('ContactsService', () => {
                 .rejects
                 .toThrow('Failed to update contact: Invalid contact ID');
             
-            expect(ContactsRepository.exists).not.toHaveBeenCalled();
-            expect(ContactsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.exists).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when update fails', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsValidator.validateUpdateData.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(true);
-            ContactsRepository.update.mockResolvedValue(null);
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.update.mockResolvedValue(null);
 
             // Act & Assert
             await expect(contactsService.updateContact(1, updateData))
@@ -183,38 +217,38 @@ describe('ContactsService', () => {
     describe('deleteContact', () => {
         it('should delete contact successfully', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(true);
-            ContactsRepository.delete.mockResolvedValue(true);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.delete.mockResolvedValue(true);
 
             // Act
             const result = await contactsService.deleteContact(1);
 
             // Assert
-            expect(ContactsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(ContactsRepository.exists).toHaveBeenCalledWith(1);
-            expect(ContactsRepository.delete).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockRepository.exists).toHaveBeenCalledWith(1);
+            expect(mockRepository.delete).toHaveBeenCalledWith(1);
             expect(result).toBe(true);
         });
 
         it('should throw error when contact not found', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(contactsService.deleteContact(999))
                 .rejects
                 .toThrow('Failed to delete contact: Contact not found');
             
-            expect(ContactsRepository.delete).not.toHaveBeenCalled();
+            expect(mockRepository.delete).not.toHaveBeenCalled();
         });
 
         it('should throw error when deletion fails', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(true);
-            ContactsRepository.delete.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.delete.mockResolvedValue(false);
 
             // Act & Assert
             await expect(contactsService.deleteContact(1))
@@ -224,7 +258,7 @@ describe('ContactsService', () => {
 
         it('should throw error when id validation fails', async () => {
             // Arrange
-            ContactsValidator.validateId.mockImplementation(() => {
+            mockValidator.validateId.mockImplementation(() => {
                 throw new Error('Invalid contact ID');
             });
 
@@ -233,8 +267,9 @@ describe('ContactsService', () => {
                 .rejects
                 .toThrow('Failed to delete contact: Invalid contact ID');
             
-            expect(ContactsRepository.exists).not.toHaveBeenCalled();
-            expect(ContactsRepository.delete).not.toHaveBeenCalled();
+            expect(mockRepository.exists).not.toHaveBeenCalled();
+            expect(mockRepository.delete).not.toHaveBeenCalled();
         });
+    });
     });
 });

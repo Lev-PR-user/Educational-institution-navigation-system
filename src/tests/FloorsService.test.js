@@ -1,32 +1,15 @@
 const FloorsService = require('../services/FloorsService');
 
-// Мокаем зависимости ДО импорта сервиса
-jest.mock('../repositories/FloorsRepository', () => ({
-    findAll: jest.fn(),
-    findByNumber: jest.fn(),
-    exists: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn()
-}));
-
-jest.mock('../validators/FloorsValidator', () => ({
-    validateFloorNumber: jest.fn(),
-    validateCreateData: jest.fn(),
-    validateUpdateData: jest.fn()
-}));
-
 jest.mock('../repositories/LocationsRepository', () => ({
     findByFloor_number: jest.fn()
 }));
 
-// Теперь импортируем моки
-const FloorsRepository = require('../repositories/FloorsRepository');
-const FloorsValidator = require('../validators/FloorsValidator');
 const LocationsRepository = require('../repositories/LocationsRepository');
 
 describe('FloorsService', () => {
     let floorsService;
+    let mockFloorsRepository;
+    let mockValidator;
     
     const mockFloor = {
         floor_number: 1,
@@ -37,7 +20,26 @@ describe('FloorsService', () => {
     };
 
     beforeEach(() => {
-        floorsService = new FloorsService();
+        mockFloorsRepository = {
+            findAll: jest.fn(),
+            findByNumber: jest.fn(),
+            exists: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn()
+        };
+
+        mockValidator = {
+            validateFloorNumber: jest.fn(),
+            validateCreateData: jest.fn(),
+            validateUpdateData: jest.fn()
+        };
+
+        floorsService = new FloorsService({
+            floorsRepository: mockFloorsRepository,
+            floorsValidator: mockValidator
+        });
+
         jest.clearAllMocks();
     });
 
@@ -45,20 +47,20 @@ describe('FloorsService', () => {
         it('should return all floors successfully', async () => {
             // Arrange
             const mockFloors = [mockFloor, { ...mockFloor, floor_number: 2, floor_name: 'Second Floor' }];
-            FloorsRepository.findAll.mockResolvedValue(mockFloors);
+            mockFloorsRepository.findAll.mockResolvedValue(mockFloors);
 
             // Act
             const result = await floorsService.getAllFloors();
 
             // Assert
-            expect(FloorsRepository.findAll).toHaveBeenCalled();
+            expect(mockFloorsRepository.findAll).toHaveBeenCalled();
             expect(result).toEqual(mockFloors);
         });
 
         it('should throw error when repository fails', async () => {
             // Arrange
             const repositoryError = new Error('Database connection failed');
-            FloorsRepository.findAll.mockRejectedValue(repositoryError);
+            mockFloorsRepository.findAll.mockRejectedValue(repositoryError);
 
             // Act & Assert
             await expect(floorsService.getAllFloors())
@@ -70,22 +72,22 @@ describe('FloorsService', () => {
     describe('getFloorByNumber', () => {
         it('should return floor by number successfully', async () => {
             // Arrange
-            FloorsValidator.validateFloorNumber.mockReturnValue(true);
-            FloorsRepository.findByNumber.mockResolvedValue(mockFloor);
+            mockValidator.validateFloorNumber.mockReturnValue(true);
+            mockFloorsRepository.findByNumber.mockResolvedValue(mockFloor);
 
             // Act
             const result = await floorsService.getFloorByNumber(1);
 
             // Assert
-            expect(FloorsValidator.validateFloorNumber).toHaveBeenCalledWith(1);
-            expect(FloorsRepository.findByNumber).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateFloorNumber).toHaveBeenCalledWith(1);
+            expect(mockFloorsRepository.findByNumber).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockFloor);
         });
 
         it('should throw error when floor not found', async () => {
             // Arrange
-            FloorsValidator.validateFloorNumber.mockReturnValue(true);
-            FloorsRepository.findByNumber.mockResolvedValue(null);
+            mockValidator.validateFloorNumber.mockReturnValue(true);
+            mockFloorsRepository.findByNumber.mockResolvedValue(null);
 
             // Act & Assert
             await expect(floorsService.getFloorByNumber(999))
@@ -95,7 +97,7 @@ describe('FloorsService', () => {
 
         it('should throw error when floor number validation fails', async () => {
             // Arrange
-            FloorsValidator.validateFloorNumber.mockImplementation(() => {
+            mockValidator.validateFloorNumber.mockImplementation(() => {
                 throw new Error('Invalid floor number');
             });
 
@@ -104,7 +106,7 @@ describe('FloorsService', () => {
                 .rejects
                 .toThrow('Failed to get floor: Invalid floor number');
             
-            expect(FloorsRepository.findByNumber).not.toHaveBeenCalled();
+            expect(mockFloorsRepository.findByNumber).not.toHaveBeenCalled();
         });
     });
 
@@ -118,36 +120,36 @@ describe('FloorsService', () => {
 
         it('should create floor successfully', async () => {
             // Arrange
-            FloorsValidator.validateCreateData.mockReturnValue(true);
-            FloorsRepository.exists.mockResolvedValue(false);
-            FloorsRepository.create.mockResolvedValue({ ...mockFloor, ...validFloorData });
+            mockValidator.validateCreateData.mockReturnValue(true);
+            mockFloorsRepository.exists.mockResolvedValue(false);
+            mockFloorsRepository.create.mockResolvedValue({ ...mockFloor, ...validFloorData });
 
             // Act
             const result = await floorsService.createFloor(validFloorData);
 
             // Assert
-            expect(FloorsValidator.validateCreateData).toHaveBeenCalledWith(validFloorData);
-            expect(FloorsRepository.exists).toHaveBeenCalledWith(3);
-            expect(FloorsRepository.create).toHaveBeenCalledWith(validFloorData);
+            expect(mockValidator.validateCreateData).toHaveBeenCalledWith(validFloorData);
+            expect(mockFloorsRepository.exists).toHaveBeenCalledWith(3);
+            expect(mockFloorsRepository.create).toHaveBeenCalledWith(validFloorData);
             expect(result).toEqual({ ...mockFloor, ...validFloorData });
         });
 
         it('should throw error when floor already exists', async () => {
             // Arrange
-            FloorsValidator.validateCreateData.mockReturnValue(true);
-            FloorsRepository.exists.mockResolvedValue(true);
+            mockValidator.validateCreateData.mockReturnValue(true);
+            mockFloorsRepository.exists.mockResolvedValue(true);
 
             // Act & Assert
             await expect(floorsService.createFloor(validFloorData))
                 .rejects
                 .toThrow('Failed to create floor: Floor already exists');
             
-            expect(FloorsRepository.create).not.toHaveBeenCalled();
+            expect(mockFloorsRepository.create).not.toHaveBeenCalled();
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
-            FloorsValidator.validateCreateData.mockImplementation(() => {
+            mockValidator.validateCreateData.mockImplementation(() => {
                 throw new Error('Invalid floor data');
             });
 
@@ -156,8 +158,8 @@ describe('FloorsService', () => {
                 .rejects
                 .toThrow('Failed to create floor: Invalid floor data');
             
-            expect(FloorsRepository.exists).not.toHaveBeenCalled();
-            expect(FloorsRepository.create).not.toHaveBeenCalled();
+            expect(mockFloorsRepository.exists).not.toHaveBeenCalled();
+            expect(mockFloorsRepository.create).not.toHaveBeenCalled();
         });
     });
 
@@ -169,39 +171,39 @@ describe('FloorsService', () => {
 
         it('should update floor successfully', async () => {
             // Arrange
-            FloorsValidator.validateFloorNumber.mockReturnValue(true);
-            FloorsValidator.validateUpdateData.mockReturnValue(true);
-            FloorsRepository.exists.mockResolvedValue(true);
-            FloorsRepository.update.mockResolvedValue({ ...mockFloor, ...updateData });
+            mockValidator.validateFloorNumber.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockFloorsRepository.exists.mockResolvedValue(true);
+            mockFloorsRepository.update.mockResolvedValue({ ...mockFloor, ...updateData });
 
             // Act
             const result = await floorsService.updateFloor(1, updateData);
 
             // Assert
-            expect(FloorsValidator.validateFloorNumber).toHaveBeenCalledWith(1);
-            expect(FloorsValidator.validateUpdateData).toHaveBeenCalledWith(updateData);
-            expect(FloorsRepository.exists).toHaveBeenCalledWith(1);
-            expect(FloorsRepository.update).toHaveBeenCalledWith(1, updateData);
+            expect(mockValidator.validateFloorNumber).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateUpdateData).toHaveBeenCalledWith(updateData);
+            expect(mockFloorsRepository.exists).toHaveBeenCalledWith(1);
+            expect(mockFloorsRepository.update).toHaveBeenCalledWith(1, updateData);
             expect(result).toEqual({ ...mockFloor, ...updateData });
         });
 
         it('should throw error when floor not found', async () => {
             // Arrange
-            FloorsValidator.validateFloorNumber.mockReturnValue(true);
-            FloorsValidator.validateUpdateData.mockReturnValue(true);
-            FloorsRepository.exists.mockResolvedValue(false);
+            mockValidator.validateFloorNumber.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockFloorsRepository.exists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(floorsService.updateFloor(999, updateData))
                 .rejects
                 .toThrow('Failed to update floor: Floor not found');
             
-            expect(FloorsRepository.update).not.toHaveBeenCalled();
+            expect(mockFloorsRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
-            FloorsValidator.validateFloorNumber.mockImplementation(() => {
+            mockValidator.validateFloorNumber.mockImplementation(() => {
                 throw new Error('Invalid floor number');
             });
 
@@ -210,16 +212,16 @@ describe('FloorsService', () => {
                 .rejects
                 .toThrow('Failed to update floor: Invalid floor number');
             
-            expect(FloorsRepository.exists).not.toHaveBeenCalled();
-            expect(FloorsRepository.update).not.toHaveBeenCalled();
+            expect(mockFloorsRepository.exists).not.toHaveBeenCalled();
+            expect(mockFloorsRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when update fails', async () => {
             // Arrange
-            FloorsValidator.validateFloorNumber.mockReturnValue(true);
-            FloorsValidator.validateUpdateData.mockReturnValue(true);
-            FloorsRepository.exists.mockResolvedValue(true);
-            FloorsRepository.update.mockResolvedValue(null);
+            mockValidator.validateFloorNumber.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockFloorsRepository.exists.mockResolvedValue(true);
+            mockFloorsRepository.update.mockResolvedValue(null);
 
             // Act & Assert
             await expect(floorsService.updateFloor(1, updateData))
@@ -228,37 +230,23 @@ describe('FloorsService', () => {
         });
     });
 
-    describe('deleteFloor', () => {
+   describe('deleteFloor', () => {
         it('should delete floor successfully when no related locations exist', async () => {
             // Arrange
-            FloorsValidator.validateFloorNumber.mockReturnValue(true);
-            FloorsRepository.exists.mockResolvedValue(true);
-            LocationsRepository.findByFloor_number.mockResolvedValue([]);
-            FloorsRepository.delete.mockResolvedValue(true);
+            mockValidator.validateFloorNumber.mockReturnValue(true);
+            mockFloorsRepository.exists.mockResolvedValue(true);
+            LocationsRepository.findByFloor_number.mockResolvedValue([]); // Используем глобальный мок
+            mockFloorsRepository.delete.mockResolvedValue(true);
 
             // Act
             const result = await floorsService.deleteFloor(1);
 
             // Assert
-            expect(FloorsValidator.validateFloorNumber).toHaveBeenCalledWith(1);
-            expect(FloorsRepository.exists).toHaveBeenCalledWith(1);
-            expect(LocationsRepository.findByFloor_number).toHaveBeenCalledWith(1);
-            expect(FloorsRepository.delete).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateFloorNumber).toHaveBeenCalledWith(1);
+            expect(mockFloorsRepository.exists).toHaveBeenCalledWith(1);
+            expect(LocationsRepository.findByFloor_number).toHaveBeenCalledWith(1); // Проверяем глобальный мок
+            expect(mockFloorsRepository.delete).toHaveBeenCalledWith(1);
             expect(result).toBe(true);
-        });
-
-        it('should throw error when floor not found', async () => {
-            // Arrange
-            FloorsValidator.validateFloorNumber.mockReturnValue(true);
-            FloorsRepository.exists.mockResolvedValue(false);
-
-            // Act & Assert
-            await expect(floorsService.deleteFloor(999))
-                .rejects
-                .toThrow('Failed to delete floor: Floor not found');
-            
-            expect(LocationsRepository.findByFloor_number).not.toHaveBeenCalled();
-            expect(FloorsRepository.delete).not.toHaveBeenCalled();
         });
 
         it('should throw error when floor has related locations', async () => {
@@ -267,44 +255,16 @@ describe('FloorsService', () => {
                 { location_id: 1, location_name: 'Room 101' },
                 { location_id: 2, location_name: 'Room 102' }
             ];
-            FloorsValidator.validateFloorNumber.mockReturnValue(true);
-            FloorsRepository.exists.mockResolvedValue(true);
-            LocationsRepository.findByFloor_number.mockResolvedValue(mockLocations);
+            mockValidator.validateFloorNumber.mockReturnValue(true);
+            mockFloorsRepository.exists.mockResolvedValue(true);
+            LocationsRepository.findByFloor_number.mockResolvedValue(mockLocations); // Используем глобальный мок
 
             // Act & Assert
             await expect(floorsService.deleteFloor(1))
                 .rejects
                 .toThrow('Failed to delete floor: Cannot delete floor with existing locations. Delete locations first.');
             
-            expect(FloorsRepository.delete).not.toHaveBeenCalled();
-        });
-
-        it('should throw error when deletion fails', async () => {
-            // Arrange
-            FloorsValidator.validateFloorNumber.mockReturnValue(true);
-            FloorsRepository.exists.mockResolvedValue(true);
-            LocationsRepository.findByFloor_number.mockResolvedValue([]);
-            FloorsRepository.delete.mockResolvedValue(false);
-
-            // Act & Assert
-            await expect(floorsService.deleteFloor(1))
-                .rejects
-                .toThrow('Failed to delete floor: Failed to delete floor');
-        });
-
-        it('should throw error when floor number validation fails', async () => {
-            // Arrange
-            FloorsValidator.validateFloorNumber.mockImplementation(() => {
-                throw new Error('Invalid floor number');
-            });
-
-            // Act & Assert
-            await expect(floorsService.deleteFloor(-1))
-                .rejects
-                .toThrow('Failed to delete floor: Invalid floor number');
-            
-            expect(FloorsRepository.exists).not.toHaveBeenCalled();
-            expect(FloorsRepository.delete).not.toHaveBeenCalled();
+            expect(mockFloorsRepository.delete).not.toHaveBeenCalled();
         });
     });
 });

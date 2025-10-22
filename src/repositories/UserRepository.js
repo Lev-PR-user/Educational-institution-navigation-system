@@ -27,7 +27,7 @@ class UserRepository {
 
         await sequelize.models.roles.create({
             user_id: user.user_id,
-            role_name: 'user' 
+            role_name: false 
         });
         
         return user;

@@ -1,10 +1,11 @@
-const QuestionsRepository = require('../repositories/QuestionsRepository');
-const QuestionsValidator = require('../validators/QuestionsValidator');
-
 class QuestionsService {
+    constructor({ questionsValidator, questionsRepository }) {
+        this.questionsValidator = questionsValidator;
+        this.questionsRepository = questionsRepository;
+    }
     async getAllQuestions() {
         try {
-            return await QuestionsRepository.findAllWithDetails();
+            return await this.questionsRepository.findAllWithDetails();
         } catch (error) {
             throw new Error(`Failed to get questions: ${error.message}`);
         }
@@ -12,9 +13,9 @@ class QuestionsService {
 
     async getQuestionById(question_id) {
         try {
-            QuestionsValidator.validateId(question_id);
+            this.questionsValidator.validateId(question_id);
             
-            const question = await QuestionsRepository.findById(question_id);
+            const question = await this.questionsRepository.findById(question_id);
             if (!question) {
                 throw new Error('Question not found');
             }
@@ -27,9 +28,9 @@ class QuestionsService {
 
     async createQuestion(questionData) {
         try {
-            QuestionsValidator.validateCreateData(questionData);
+            this.questionsValidator.validateCreateData(questionData);
             
-            return await QuestionsRepository.create(questionData);
+            return await this.questionsRepository.create(questionData);
         } catch (error) {
             throw new Error(`Failed to create question: ${error.message}`);
         }
@@ -37,20 +38,20 @@ class QuestionsService {
 
     async updateQuestion(question_id, questionData, user_id) {
         try {
-            QuestionsValidator.validateId(question_id);
-            QuestionsValidator.validateUpdateData(questionData);
+            this.questionsValidator.validateId(question_id);
+            this.questionsValidator.validateUpdateData(questionData);
             
-            const questionExists = await QuestionsRepository.exists(question_id);
+            const questionExists = await this.questionsRepository.exists(question_id);
             if (!questionExists) {
                 throw new Error('Question not found');
             }
 
-            const isAuthor = await QuestionsRepository.isAuthor(question_id, user_id);
+            const isAuthor = await this.questionsRepository.isAuthor(question_id, user_id);
             if (!isAuthor) {
                 throw new Error('You can only edit your own questions');
             }
 
-            const updatedQuestion = await QuestionsRepository.update(question_id, questionData);
+            const updatedQuestion = await this.questionsRepository.update(question_id, questionData);
             if (!updatedQuestion) {
                 throw new Error('Failed to update question');
             }
@@ -63,22 +64,22 @@ class QuestionsService {
 
     async deleteQuestion(question_id, user_id) {
         try {
-            QuestionsValidator.validateId(question_id);
+            this.questionsValidator.validateId(question_id);
             
-            const questionExists = await QuestionsRepository.exists(question_id);
+            const questionExists = await this.questionsRepository.exists(question_id);
             if (!questionExists) {
                 throw new Error('Question not found');
             }
 
-            const isAuthor = await QuestionsRepository.isAuthor(question_id, user_id);
-            const userRole = await QuestionsRepository.getUserRole(user_id);
+            const isAuthor = await this.questionsRepository.isAuthor(question_id, user_id);
+            const userRole = await this.questionsRepository.getUserRole(user_id);
             const isAdmin = userRole === 'admin';
 
             if (!isAuthor && !isAdmin) {
                 throw new Error('You can only delete your own questions');
             }
 
-            const isDeleted = await QuestionsRepository.delete(question_id);
+            const isDeleted = await this.questionsRepository.delete(question_id);
             if (!isDeleted) {
                 throw new Error('Failed to delete question');
             }
@@ -91,20 +92,20 @@ class QuestionsService {
 
     async toggleQuestionStatus(question_id, statusData, user_id) {
         try {
-            QuestionsValidator.validateId(question_id);
-            QuestionsValidator.validateStatusData(statusData);
+            this.questionsValidator.validateId(question_id);
+            this.questionsValidator.validateStatusData(statusData);
             
-            const questionExists = await QuestionsRepository.exists(question_id);
+            const questionExists = await this.questionsRepository.exists(question_id);
             if (!questionExists) {
                 throw new Error('Question not found');
             }
 
-            const isAuthor = await QuestionsRepository.isAuthor(question_id, user_id);
+            const isAuthor = await this.questionsRepository.isAuthor(question_id, user_id);
             if (!isAuthor) {
                 throw new Error('You can only edit your own questions');
             }
 
-            const updatedQuestion = await QuestionsRepository.updateStatus(question_id, statusData.is_closed);
+            const updatedQuestion = await this.questionsRepository.updateStatus(question_id, statusData.is_closed);
             if (!updatedQuestion) {
                 throw new Error('Failed to update question status');
             }

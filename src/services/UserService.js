@@ -1,21 +1,24 @@
-const UserRepository = require('../repositories/UserRepository');
-const UserValidator = require('../validators/UserValidator')
 const jwt = require('jsonwebtoken');
 
 class UserService {
+    constructor({ userValidator, userRepository }) {
+        this.userValidator = userValidator;
+        this.userRepository = userRepository;
+    }
+
     async register(userData) {
         try {
-            UserValidator.validateRegistrationData(userData);
+            this.userValidator.validateRegistrationData(userData);
             
-            const existingUser = await UserRepository.findByEmail(userData.email_users);
+            const existingUser = await this.userRepository.findByEmail(userData.email_users);
             if (existingUser) {
                 throw new Error('User already exists');
             }
 
-            const hashedPassword = await UserValidator.hashPassword(userData.password_hash);
+            const hashedPassword = await this.userValidator.hashPassword(userData.password_hash);
             userData.password_hash = hashedPassword;
 
-            const user = await UserRepository.create(userData);
+            const user = await this.userRepository.create(userData);
 
             return user;
         } catch (error) {
@@ -25,14 +28,14 @@ class UserService {
 
     async login(loginData) {
         try {
-            UserValidator.validateLoginData(loginData);
+            this.userValidator.validateLoginData(loginData);
 
-            const user = await UserRepository.findByEmail(loginData.email_users);
+            const user = await this.userRepository.findByEmail(loginData.email_users);
             if (!user) {
                 throw new Error('User not found');
             }
 
-            const isValidPassword = await UserValidator.validatePassword(
+            const isValidPassword = await this.userValidator.validatePassword(
                 loginData.password_hash, 
                 user.password_hash
             );
@@ -60,7 +63,7 @@ class UserService {
     }
 
     async getProfile(user_id) {
-        const user = await UserRepository.findById(user_id);
+        const user = await this.userRepository.findById(user_id);
         if (!user) {
             throw new Error('User not found');
         }
@@ -69,10 +72,10 @@ class UserService {
 
     async updateProfile(user_id, updateData) {
         if (updateData.password_hash) {
-            updateData.password_hash = await UserValidator.hashPassword(updateData.password_hash);
+            updateData.password_hash = await this.userValidator.hashPassword(updateData.password_hash);
         }
 
-        const updatedUser = await UserRepository.update(user_id, updateData);
+        const updatedUser = await this.userRepository.update(user_id, updateData);
         if (!updatedUser) {
             throw new Error('User not found');
         }
@@ -81,12 +84,12 @@ class UserService {
     }
 
     async deleteProfile(user_id) {
-        const user = await UserRepository.findById(user_id);
+        const user = await this.userRepository.findById(user_id);
         if (!user) {
             throw new Error('User not found');
         }
 
-        await UserRepository.delete(user_id);
+        await this.userRepository.delete(user_id);
         return true;
     }
 }

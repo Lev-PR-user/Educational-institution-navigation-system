@@ -1,30 +1,9 @@
 const RoomService = require('../services/RoomsService');
 
-// Мокаем зависимости ДО импорта сервиса
-jest.mock('../repositories/RoomsRepository', () => ({
-    findAllWithDetails: jest.fn(),
-    findByNumber: jest.fn(),
-    findByFloorNumber: jest.fn(),
-    exists: jest.fn(),
-    existsByNumber: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn()
-}));
-
-jest.mock('../validators/RoomsValidator', () => ({
-    validateRoomNumber: jest.fn(),
-    validateFloorNumber: jest.fn(),
-    validateCreateData: jest.fn(),
-    validateUpdateData: jest.fn()
-}));
-
-// Теперь импортируем моки
-const RoomsRepository = require('../repositories/RoomsRepository');
-const RoomsValidator = require('../validators/RoomsValidator');
-
 describe('RoomService', () => {
     let roomService;
+    let mockRepository;
+    let mockValidator;
     
     const mockRoom = {
         room_id: 1,
@@ -45,7 +24,31 @@ describe('RoomService', () => {
     };
 
     beforeEach(() => {
-        roomService = new RoomService();
+        // Создаем моки для зависимостей
+        mockRepository = {
+            findAllWithDetails: jest.fn(),
+            findByNumber: jest.fn(),
+            findByFloorNumber: jest.fn(),
+            exists: jest.fn(),
+            existsByNumber: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn()
+        };
+
+        mockValidator = {
+            validateRoomNumber: jest.fn(),
+            validateFloorNumber: jest.fn(),
+            validateCreateData: jest.fn(),
+            validateUpdateData: jest.fn()
+        };
+
+        // Создаем экземпляр сервиса с передачей зависимостей
+        roomService = new RoomService({
+            roomsRepository: mockRepository,
+            roomsValidator: mockValidator
+        });
+
         jest.clearAllMocks();
     });
 
@@ -53,20 +56,20 @@ describe('RoomService', () => {
         it('should return all rooms with details successfully', async () => {
             // Arrange
             const mockRooms = [mockRoomWithDetails, { ...mockRoomWithDetails, room_id: 2, room_number: '102' }];
-            RoomsRepository.findAllWithDetails.mockResolvedValue(mockRooms);
+            mockRepository.findAllWithDetails.mockResolvedValue(mockRooms);
 
             // Act
             const result = await roomService.getAllRooms();
 
             // Assert
-            expect(RoomsRepository.findAllWithDetails).toHaveBeenCalled();
+            expect(mockRepository.findAllWithDetails).toHaveBeenCalled();
             expect(result).toEqual(mockRooms);
         });
 
         it('should throw error when repository fails', async () => {
             // Arrange
             const repositoryError = new Error('Database connection failed');
-            RoomsRepository.findAllWithDetails.mockRejectedValue(repositoryError);
+            mockRepository.findAllWithDetails.mockRejectedValue(repositoryError);
 
             // Act & Assert
             await expect(roomService.getAllRooms())
@@ -78,22 +81,22 @@ describe('RoomService', () => {
     describe('getRoomByNumber', () => {
         it('should return room by number successfully', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockReturnValue(true);
-            RoomsRepository.findByNumber.mockResolvedValue(mockRoomWithDetails);
+            mockValidator.validateRoomNumber.mockReturnValue(true);
+            mockRepository.findByNumber.mockResolvedValue(mockRoomWithDetails);
 
             // Act
             const result = await roomService.getRoomByNumber('101');
 
             // Assert
-            expect(RoomsValidator.validateRoomNumber).toHaveBeenCalledWith('101');
-            expect(RoomsRepository.findByNumber).toHaveBeenCalledWith('101');
+            expect(mockValidator.validateRoomNumber).toHaveBeenCalledWith('101');
+            expect(mockRepository.findByNumber).toHaveBeenCalledWith('101');
             expect(result).toEqual(mockRoomWithDetails);
         });
 
         it('should throw error when room not found', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockReturnValue(true);
-            RoomsRepository.findByNumber.mockResolvedValue(null);
+            mockValidator.validateRoomNumber.mockReturnValue(true);
+            mockRepository.findByNumber.mockResolvedValue(null);
 
             // Act & Assert
             await expect(roomService.getRoomByNumber('999'))
@@ -103,7 +106,7 @@ describe('RoomService', () => {
 
         it('should throw error when room number validation fails', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockImplementation(() => {
+            mockValidator.validateRoomNumber.mockImplementation(() => {
                 throw new Error('Invalid room number');
             });
 
@@ -112,7 +115,7 @@ describe('RoomService', () => {
                 .rejects
                 .toThrow('Failed to get room: Invalid room number');
             
-            expect(RoomsRepository.findByNumber).not.toHaveBeenCalled();
+            expect(mockRepository.findByNumber).not.toHaveBeenCalled();
         });
     });
 
@@ -120,35 +123,35 @@ describe('RoomService', () => {
         it('should return rooms by floor number successfully', async () => {
             // Arrange
             const mockRooms = [mockRoomWithDetails, { ...mockRoomWithDetails, room_number: '102' }];
-            RoomsValidator.validateFloorNumber.mockReturnValue(true);
-            RoomsRepository.findByFloorNumber.mockResolvedValue(mockRooms);
+            mockValidator.validateFloorNumber.mockReturnValue(true);
+            mockRepository.findByFloorNumber.mockResolvedValue(mockRooms);
 
             // Act
             const result = await roomService.getRoomsByFloor(1);
 
             // Assert
-            expect(RoomsValidator.validateFloorNumber).toHaveBeenCalledWith(1);
-            expect(RoomsRepository.findByFloorNumber).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateFloorNumber).toHaveBeenCalledWith(1);
+            expect(mockRepository.findByFloorNumber).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockRooms);
         });
 
         it('should return empty array when no rooms on floor', async () => {
             // Arrange
-            RoomsValidator.validateFloorNumber.mockReturnValue(true);
-            RoomsRepository.findByFloorNumber.mockResolvedValue([]);
+            mockValidator.validateFloorNumber.mockReturnValue(true);
+            mockRepository.findByFloorNumber.mockResolvedValue([]);
 
             // Act
             const result = await roomService.getRoomsByFloor(5);
 
             // Assert
-            expect(RoomsValidator.validateFloorNumber).toHaveBeenCalledWith(5);
-            expect(RoomsRepository.findByFloorNumber).toHaveBeenCalledWith(5);
+            expect(mockValidator.validateFloorNumber).toHaveBeenCalledWith(5);
+            expect(mockRepository.findByFloorNumber).toHaveBeenCalledWith(5);
             expect(result).toEqual([]);
         });
 
         it('should throw error when floor number validation fails', async () => {
             // Arrange
-            RoomsValidator.validateFloorNumber.mockImplementation(() => {
+            mockValidator.validateFloorNumber.mockImplementation(() => {
                 throw new Error('Invalid floor number');
             });
 
@@ -157,7 +160,7 @@ describe('RoomService', () => {
                 .rejects
                 .toThrow('Failed to get rooms by floor: Invalid floor number');
             
-            expect(RoomsRepository.findByFloorNumber).not.toHaveBeenCalled();
+            expect(mockRepository.findByFloorNumber).not.toHaveBeenCalled();
         });
     });
 
@@ -173,36 +176,36 @@ describe('RoomService', () => {
 
         it('should create room successfully', async () => {
             // Arrange
-            RoomsValidator.validateCreateData.mockReturnValue(true);
-            RoomsRepository.exists.mockResolvedValue(false);
-            RoomsRepository.create.mockResolvedValue({ ...mockRoom, ...validRoomData });
+            mockValidator.validateCreateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(false);
+            mockRepository.create.mockResolvedValue({ ...mockRoom, ...validRoomData });
 
             // Act
             const result = await roomService.createRoom(validRoomData);
 
             // Assert
-            expect(RoomsValidator.validateCreateData).toHaveBeenCalledWith(validRoomData);
-            expect(RoomsRepository.exists).toHaveBeenCalledWith('201');
-            expect(RoomsRepository.create).toHaveBeenCalledWith(validRoomData);
+            expect(mockValidator.validateCreateData).toHaveBeenCalledWith(validRoomData);
+            expect(mockRepository.exists).toHaveBeenCalledWith('201');
+            expect(mockRepository.create).toHaveBeenCalledWith(validRoomData);
             expect(result).toEqual({ ...mockRoom, ...validRoomData });
         });
 
         it('should throw error when room already exists', async () => {
             // Arrange
-            RoomsValidator.validateCreateData.mockReturnValue(true);
-            RoomsRepository.exists.mockResolvedValue(true);
+            mockValidator.validateCreateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
 
             // Act & Assert
             await expect(roomService.createRoom(validRoomData))
                 .rejects
                 .toThrow('Failed to create room: Room with this number already exists');
             
-            expect(RoomsRepository.create).not.toHaveBeenCalled();
+            expect(mockRepository.create).not.toHaveBeenCalled();
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
-            RoomsValidator.validateCreateData.mockImplementation(() => {
+            mockValidator.validateCreateData.mockImplementation(() => {
                 throw new Error('Invalid room data');
             });
 
@@ -211,8 +214,8 @@ describe('RoomService', () => {
                 .rejects
                 .toThrow('Failed to create room: Invalid room data');
             
-            expect(RoomsRepository.exists).not.toHaveBeenCalled();
-            expect(RoomsRepository.create).not.toHaveBeenCalled();
+            expect(mockRepository.exists).not.toHaveBeenCalled();
+            expect(mockRepository.create).not.toHaveBeenCalled();
         });
     });
 
@@ -229,76 +232,76 @@ describe('RoomService', () => {
 
         it('should update room successfully', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockReturnValue(true);
-            RoomsValidator.validateUpdateData.mockReturnValue(true);
-            RoomsRepository.exists.mockResolvedValue(true);
-            RoomsRepository.existsByNumber.mockResolvedValue(false);
-            RoomsRepository.update.mockResolvedValue({ ...mockRoom, ...updateData });
+            mockValidator.validateRoomNumber.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.existsByNumber.mockResolvedValue(false);
+            mockRepository.update.mockResolvedValue({ ...mockRoom, ...updateData });
 
             // Act
             const result = await roomService.updateRoom('101', updateData);
 
             // Assert
-            expect(RoomsValidator.validateRoomNumber).toHaveBeenCalledWith('101');
-            expect(RoomsValidator.validateUpdateData).toHaveBeenCalledWith(updateData);
-            expect(RoomsRepository.exists).toHaveBeenCalledWith('101');
-            expect(RoomsRepository.update).toHaveBeenCalledWith('101', updateData);
+            expect(mockValidator.validateRoomNumber).toHaveBeenCalledWith('101');
+            expect(mockValidator.validateUpdateData).toHaveBeenCalledWith(updateData);
+            expect(mockRepository.exists).toHaveBeenCalledWith('101');
+            expect(mockRepository.update).toHaveBeenCalledWith('101', updateData);
             expect(result).toEqual({ ...mockRoom, ...updateData });
         });
 
         it('should update room with new number successfully', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockReturnValue(true);
-            RoomsValidator.validateUpdateData.mockReturnValue(true);
-            RoomsRepository.exists.mockResolvedValue(true);
-            RoomsRepository.existsByNumber.mockResolvedValue(false);
-            RoomsRepository.update.mockResolvedValue({ ...mockRoom, ...updateDataWithNumber });
+            mockValidator.validateRoomNumber.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.existsByNumber.mockResolvedValue(false);
+            mockRepository.update.mockResolvedValue({ ...mockRoom, ...updateDataWithNumber });
 
             // Act
             const result = await roomService.updateRoom('101', updateDataWithNumber);
 
             // Assert
-            expect(RoomsValidator.validateRoomNumber).toHaveBeenCalledWith('101');
-            expect(RoomsValidator.validateUpdateData).toHaveBeenCalledWith(updateDataWithNumber);
-            expect(RoomsRepository.exists).toHaveBeenCalledWith('101');
-            expect(RoomsRepository.existsByNumber).toHaveBeenCalledWith('101A', '101');
-            expect(RoomsRepository.update).toHaveBeenCalledWith('101', updateDataWithNumber);
+            expect(mockValidator.validateRoomNumber).toHaveBeenCalledWith('101');
+            expect(mockValidator.validateUpdateData).toHaveBeenCalledWith(updateDataWithNumber);
+            expect(mockRepository.exists).toHaveBeenCalledWith('101');
+            expect(mockRepository.existsByNumber).toHaveBeenCalledWith('101A', '101');
+            expect(mockRepository.update).toHaveBeenCalledWith('101', updateDataWithNumber);
             expect(result).toEqual({ ...mockRoom, ...updateDataWithNumber });
         });
 
         it('should throw error when room not found', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockReturnValue(true);
-            RoomsValidator.validateUpdateData.mockReturnValue(true);
-            RoomsRepository.exists.mockResolvedValue(false);
+            mockValidator.validateRoomNumber.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(roomService.updateRoom('999', updateData))
                 .rejects
                 .toThrow('Failed to update room: Room not found');
             
-            expect(RoomsRepository.existsByNumber).not.toHaveBeenCalled();
-            expect(RoomsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.existsByNumber).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when new room number already exists', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockReturnValue(true);
-            RoomsValidator.validateUpdateData.mockReturnValue(true);
-            RoomsRepository.exists.mockResolvedValue(true);
-            RoomsRepository.existsByNumber.mockResolvedValue(true);
+            mockValidator.validateRoomNumber.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.existsByNumber.mockResolvedValue(true);
 
             // Act & Assert
             await expect(roomService.updateRoom('101', updateDataWithNumber))
                 .rejects
                 .toThrow('Failed to update room: Room with this number already exists');
             
-            expect(RoomsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockImplementation(() => {
+            mockValidator.validateRoomNumber.mockImplementation(() => {
                 throw new Error('Invalid room number');
             });
 
@@ -307,17 +310,17 @@ describe('RoomService', () => {
                 .rejects
                 .toThrow('Failed to update room: Invalid room number');
             
-            expect(RoomsRepository.exists).not.toHaveBeenCalled();
-            expect(RoomsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.exists).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when update fails', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockReturnValue(true);
-            RoomsValidator.validateUpdateData.mockReturnValue(true);
-            RoomsRepository.exists.mockResolvedValue(true);
-            RoomsRepository.existsByNumber.mockResolvedValue(false);
-            RoomsRepository.update.mockResolvedValue(null);
+            mockValidator.validateRoomNumber.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.existsByNumber.mockResolvedValue(false);
+            mockRepository.update.mockResolvedValue(null);
 
             // Act & Assert
             await expect(roomService.updateRoom('101', updateData))
@@ -329,38 +332,38 @@ describe('RoomService', () => {
     describe('deleteRoom', () => {
         it('should delete room successfully', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockReturnValue(true);
-            RoomsRepository.exists.mockResolvedValue(true);
-            RoomsRepository.delete.mockResolvedValue(true);
+            mockValidator.validateRoomNumber.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.delete.mockResolvedValue(true);
 
             // Act
             const result = await roomService.deleteRoom('101');
 
             // Assert
-            expect(RoomsValidator.validateRoomNumber).toHaveBeenCalledWith('101');
-            expect(RoomsRepository.exists).toHaveBeenCalledWith('101');
-            expect(RoomsRepository.delete).toHaveBeenCalledWith('101');
+            expect(mockValidator.validateRoomNumber).toHaveBeenCalledWith('101');
+            expect(mockRepository.exists).toHaveBeenCalledWith('101');
+            expect(mockRepository.delete).toHaveBeenCalledWith('101');
             expect(result).toBe(true);
         });
 
         it('should throw error when room not found', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockReturnValue(true);
-            RoomsRepository.exists.mockResolvedValue(false);
+            mockValidator.validateRoomNumber.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(roomService.deleteRoom('999'))
                 .rejects
                 .toThrow('Failed to delete room: Room not found');
             
-            expect(RoomsRepository.delete).not.toHaveBeenCalled();
+            expect(mockRepository.delete).not.toHaveBeenCalled();
         });
 
         it('should throw error when deletion fails', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockReturnValue(true);
-            RoomsRepository.exists.mockResolvedValue(true);
-            RoomsRepository.delete.mockResolvedValue(false);
+            mockValidator.validateRoomNumber.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.delete.mockResolvedValue(false);
 
             // Act & Assert
             await expect(roomService.deleteRoom('101'))
@@ -370,7 +373,7 @@ describe('RoomService', () => {
 
         it('should throw error when room number validation fails', async () => {
             // Arrange
-            RoomsValidator.validateRoomNumber.mockImplementation(() => {
+            mockValidator.validateRoomNumber.mockImplementation(() => {
                 throw new Error('Invalid room number');
             });
 
@@ -379,8 +382,8 @@ describe('RoomService', () => {
                 .rejects
                 .toThrow('Failed to delete room: Invalid room number');
             
-            expect(RoomsRepository.exists).not.toHaveBeenCalled();
-            expect(RoomsRepository.delete).not.toHaveBeenCalled();
+            expect(mockRepository.exists).not.toHaveBeenCalled();
+            expect(mockRepository.delete).not.toHaveBeenCalled();
         });
     });
 });

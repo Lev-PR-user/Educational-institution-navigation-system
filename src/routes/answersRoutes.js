@@ -3,7 +3,6 @@ const express = require('express');
 function createAnswersRoutes(answersController, authMiddleware) {
   const router = express.Router();
 
-  // Защищенные маршруты (для всех авторизованных пользователей)
   router.use(authMiddleware.Protect);
   
   router.get('/question/:questionId', (req, res) => answersController.getAnswersByQuestion(req, res));

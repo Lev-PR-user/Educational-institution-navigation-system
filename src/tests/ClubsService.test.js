@@ -1,331 +1,342 @@
-const ContactsService = require('../services/ContactsService');
+const ClubsService = require('../services/ClubsService');
 
-// Мокаем зависимости ДО импорта сервиса
-jest.mock('../repositories/ContactsRepository', () => ({
-    findAllWithAdminInfo: jest.fn(),
-    findById: jest.fn(),
-    adminExists: jest.fn(),
-    exists: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn()
-}));
-
-jest.mock('../validators/ContactsValidator', () => ({
-    validateId: jest.fn(),
-    validateCreateData: jest.fn(),
-    validateUpdateData: jest.fn()
-}));
-
-// Теперь импортируем моки
-const ContactsRepository = require('../repositories/ContactsRepository');
-const ContactsValidator = require('../validators/ContactsValidator');
-
-describe('ContactsService', () => {
-    let contactsService;
+describe('ClubsService', () => {
+    let clubsService;
+    let mockValidator;
+    let mockRepository;
     
-    const mockContact = {
-        contacts_id: 1,
-        administration_id: 1,
+    const mockClub = {
+        club_id: 1,
+        club_name: 'Test Club',
+        description: 'Test Description',
+        established_date: '2020-01-01',
+        contact_email: 'club@example.com',
         phone_number: '+1234567890',
-        email: 'contact@example.com',
-        address: '123 Main Street, City, Country',
-        is_active: true,
-        created_at: '2023-01-01T00:00:00.000Z',
-        updated_at: '2023-01-01T00:00:00.000Z'
+        address: '123 Club Street, City, Country',
+        is_active: true
     };
 
     beforeEach(() => {
-        contactsService = new ContactsService();
+        // Создаем моки для зависимостей
+        mockValidator = {
+            validateId: jest.fn(),
+            validateCreateData: jest.fn(),
+            validateUpdateData: jest.fn()
+        };
+
+        mockRepository = {
+            findAll: jest.fn(),
+            findById: jest.fn(),
+            locationExists: jest.fn(),
+            exists: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn()
+        };
+
+        clubsService = new ClubsService({
+            clubsValidator: mockValidator,  
+            clubsRepository: mockRepository   
+        });
+
         jest.clearAllMocks();
     });
 
-    describe('getAllContacts', () => {
-        const mockContactWithAdminInfo = {
-            ...mockContact,
-            administration: {
-                admin_name: 'Main Administration',
-                admin_type: 'general'
-            }
-        };
-
-        it('should return all contacts with admin info successfully', async () => {
+    describe('getAllClubs', () => {
+        it('should return all clubs successfully', async () => {
             // Arrange
-            const mockContacts = [
-                mockContactWithAdminInfo,
+            const mockClubs = [
+                mockClub,
                 { 
-                    ...mockContactWithAdminInfo, 
-                    contacts_id: 2, 
-                    phone_number: '+0987654321',
-                    email: 'contact2@example.com'
+                    ...mockClub, 
+                    club_id: 2, 
+                    club_name: 'Second Club',
+                    contact_email: 'club2@example.com'
                 }
             ];
-            ContactsRepository.findAllWithAdminInfo.mockResolvedValue(mockContacts);
+            mockRepository.findAll.mockResolvedValue(mockClubs);
 
             // Act
-            const result = await contactsService.getAllContacts();
+            const result = await clubsService.getAllClubs();
 
             // Assert
-            expect(ContactsRepository.findAllWithAdminInfo).toHaveBeenCalled();
-            expect(result).toEqual(mockContacts);
+            expect(mockRepository.findAll).toHaveBeenCalled();
+            expect(result).toEqual(mockClubs);
         });
 
         it('should throw error when repository fails', async () => {
             // Arrange
             const repositoryError = new Error('Database connection failed');
-            ContactsRepository.findAllWithAdminInfo.mockRejectedValue(repositoryError);
+            mockRepository.findAll.mockRejectedValue(repositoryError);
 
             // Act & Assert
-            await expect(contactsService.getAllContacts())
+            await expect(clubsService.getAllClubs())
                 .rejects
-                .toThrow('Failed to get contacts: Database connection failed');
+                .toThrow('Failed to get clubs: Database connection failed');
         });
     });
 
-    describe('getContactById', () => {
-        const mockContactWithAdminInfo = {
-            ...mockContact,
-            administration: {
-                admin_name: 'Main Administration',
-                admin_type: 'general'
-            }
-        };
-
-        it('should return contact by id successfully', async () => {
+    describe('getClubById', () => {
+        it('should return club by id successfully', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsRepository.findById.mockResolvedValue(mockContactWithAdminInfo);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.findById.mockResolvedValue(mockClub);
 
             // Act
-            const result = await contactsService.getContactById(1);
+            const result = await clubsService.getClubById(1);
 
             // Assert
-            expect(ContactsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(ContactsRepository.findById).toHaveBeenCalledWith(1);
-            expect(result).toEqual(mockContactWithAdminInfo);
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockRepository.findById).toHaveBeenCalledWith(1);
+            expect(result).toEqual(mockClub);
         });
 
-        it('should throw error when contact not found', async () => {
+        it('should throw error when club not found', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsRepository.findById.mockResolvedValue(null);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.findById.mockResolvedValue(null);
 
             // Act & Assert
-            await expect(contactsService.getContactById(999))
+            await expect(clubsService.getClubById(999))
                 .rejects
-                .toThrow('Failed to get contact: Contact not found');
+                .toThrow('Failed to get club: Club not found');
         });
 
         it('should throw error when id validation fails', async () => {
             // Arrange
-            ContactsValidator.validateId.mockImplementation(() => {
-                throw new Error('Invalid contact ID');
+            mockValidator.validateId.mockImplementation(() => {
+                throw new Error('Invalid club ID');
             });
 
             // Act & Assert
-            await expect(contactsService.getContactById(-1))
+            await expect(clubsService.getClubById(-1))
                 .rejects
-                .toThrow('Failed to get contact: Invalid contact ID');
+                .toThrow('Failed to get club: Invalid club ID');
             
-            expect(ContactsRepository.findById).not.toHaveBeenCalled();
+            expect(mockRepository.findById).not.toHaveBeenCalled();
         });
     });
 
-    describe('createContact', () => {
-        const validContactData = {
-            administration_id: 2,
+    describe('createClub', () => {
+        const validClubData = {
+            club_name: 'New Club',
+            description: 'New Club Description',
+            established_date: '2023-01-01',
+            contact_email: 'newclub@example.com',
             phone_number: '+1111111111',
-            email: 'newcontact@example.com',
             address: '456 New Street, City, Country',
             is_active: true
         };
 
-        it('should create contact successfully', async () => {
+        it('should create club successfully', async () => {
             // Arrange
-            ContactsValidator.validateCreateData.mockReturnValue(true);
-            ContactsRepository.adminExists.mockResolvedValue(true);
-            ContactsRepository.exists.mockResolvedValue(false);
-            ContactsRepository.create.mockResolvedValue({ ...mockContact, ...validContactData });
+            mockValidator.validateCreateData.mockReturnValue(true);
+            mockRepository.locationExists.mockResolvedValue(true);
+            mockRepository.create.mockResolvedValue({ ...mockClub, ...validClubData });
 
             // Act
-            const result = await contactsService.createContact(validContactData);
+            const result = await clubsService.createClub(validClubData);
 
             // Assert
-            expect(ContactsValidator.validateCreateData).toHaveBeenCalledWith(validContactData);
-            expect(ContactsRepository.adminExists).toHaveBeenCalled();
-            expect(ContactsRepository.exists).toHaveBeenCalled();
-            expect(ContactsRepository.create).toHaveBeenCalledWith(validContactData);
-            expect(result).toEqual({ ...mockContact, ...validContactData });
+            expect(mockValidator.validateCreateData).toHaveBeenCalledWith(validClubData);
+            expect(mockRepository.locationExists).toHaveBeenCalledWith(validClubData.location_id);
+            expect(mockRepository.create).toHaveBeenCalledWith(validClubData);
+            expect(result).toEqual({ ...mockClub, ...validClubData });
         });
 
-        it('should throw error when administration not found', async () => {
+        it('should throw error when location not found', async () => {
             // Arrange
-            ContactsValidator.validateCreateData.mockReturnValue(true);
-            ContactsRepository.adminExists.mockResolvedValue(false);
+            mockValidator.validateCreateData.mockReturnValue(true);
+            mockRepository.locationExists.mockResolvedValue(false);
 
             // Act & Assert
-            await expect(contactsService.createContact(validContactData))
+            await expect(clubsService.createClub(validClubData))
                 .rejects
-                .toThrow('Failed to create contact: Administration not found');
+                .toThrow('Failed to create club: Location not found');
             
-            expect(ContactsRepository.exists).not.toHaveBeenCalled();
-            expect(ContactsRepository.create).not.toHaveBeenCalled();
-        });
-
-        it('should throw error when contact already exists for administration', async () => {
-            // Arrange
-            ContactsValidator.validateCreateData.mockReturnValue(true);
-            ContactsRepository.adminExists.mockResolvedValue(true);
-            ContactsRepository.exists.mockResolvedValue(true);
-
-            // Act & Assert
-            await expect(contactsService.createContact(validContactData))
-                .rejects
-                .toThrow('Failed to create contact: Contact already exists for this administration');
-            
-            expect(ContactsRepository.create).not.toHaveBeenCalled();
+            expect(mockRepository.create).not.toHaveBeenCalled();
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
-            ContactsValidator.validateCreateData.mockImplementation(() => {
-                throw new Error('Invalid contact data');
+            mockValidator.validateCreateData.mockImplementation(() => {
+                throw new Error('Invalid club data');
             });
 
             // Act & Assert
-            await expect(contactsService.createContact(validContactData))
+            await expect(clubsService.createClub(validClubData))
                 .rejects
-                .toThrow('Failed to create contact: Invalid contact data');
+                .toThrow('Failed to create club: Invalid club data');
             
-            expect(ContactsRepository.adminExists).not.toHaveBeenCalled();
-            expect(ContactsRepository.exists).not.toHaveBeenCalled();
-            expect(ContactsRepository.create).not.toHaveBeenCalled();
+            expect(mockRepository.locationExists).not.toHaveBeenCalled();
+            expect(mockRepository.create).not.toHaveBeenCalled();
         });
     });
 
-    describe('updateContact', () => {
+    describe('updateClub', () => {
         const updateData = {
-            phone_number: '+9999999999',
-            email: 'updated@example.com',
-            address: '789 Updated Street, City, Country'
+            club_name: 'Updated Club Name',
+            description: 'Updated Description',
+            contact_email: 'updated@example.com'
         };
 
-        it('should update contact successfully', async () => {
+        const updateDataWithLocation = {
+            ...updateData,
+            location_id: 2
+        };
+
+        it('should update club successfully', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsValidator.validateUpdateData.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(true);
-            ContactsRepository.update.mockResolvedValue({ ...mockContact, ...updateData });
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.update.mockResolvedValue({ ...mockClub, ...updateData });
 
             // Act
-            const result = await contactsService.updateContact(1, updateData);
+            const result = await clubsService.updateClub(1, updateData);
 
             // Assert
-            expect(ContactsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(ContactsValidator.validateUpdateData).toHaveBeenCalledWith(updateData);
-            expect(ContactsRepository.exists).toHaveBeenCalledWith(1);
-            expect(ContactsRepository.update).toHaveBeenCalledWith(1, updateData);
-            expect(result).toEqual({ ...mockContact, ...updateData });
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateUpdateData).toHaveBeenCalledWith(updateData);
+            expect(mockRepository.exists).toHaveBeenCalledWith(1);
+            expect(mockRepository.update).toHaveBeenCalledWith(1, updateData);
+            expect(result).toEqual({ ...mockClub, ...updateData });
         });
 
-        it('should throw error when contact not found', async () => {
+        it('should update club with location successfully', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsValidator.validateUpdateData.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.locationExists.mockResolvedValue(true);
+            mockRepository.update.mockResolvedValue({ ...mockClub, ...updateDataWithLocation });
+
+            // Act
+            const result = await clubsService.updateClub(1, updateDataWithLocation);
+
+            // Assert
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateUpdateData).toHaveBeenCalledWith(updateDataWithLocation);
+            expect(mockRepository.exists).toHaveBeenCalledWith(1);
+            expect(mockRepository.locationExists).toHaveBeenCalledWith(2);
+            expect(mockRepository.update).toHaveBeenCalledWith(1, updateDataWithLocation);
+            expect(result).toEqual({ ...mockClub, ...updateDataWithLocation });
+        });
+
+        it('should throw error when club not found', async () => {
+            // Arrange
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(false);
 
             // Act & Assert
-            await expect(contactsService.updateContact(999, updateData))
+            await expect(clubsService.updateClub(999, updateData))
                 .rejects
-                .toThrow('Failed to update contact: Contact not found');
+                .toThrow('Failed to update club: Club not found');
             
-            expect(ContactsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.locationExists).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
+        });
+
+        it('should throw error when location not found', async () => {
+            // Arrange
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.locationExists.mockResolvedValue(false);
+
+            // Act & Assert
+            await expect(clubsService.updateClub(1, updateDataWithLocation))
+                .rejects
+                .toThrow('Failed to update club: Location not found');
+            
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
-            ContactsValidator.validateId.mockImplementation(() => {
-                throw new Error('Invalid contact ID');
+            mockValidator.validateId.mockImplementation(() => {
+                throw new Error('Invalid club ID');
             });
 
             // Act & Assert
-            await expect(contactsService.updateContact(-1, updateData))
+            await expect(clubsService.updateClub(-1, updateData))
                 .rejects
-                .toThrow('Failed to update contact: Invalid contact ID');
+                .toThrow('Failed to update club: Invalid club ID');
             
-            expect(ContactsRepository.exists).not.toHaveBeenCalled();
-            expect(ContactsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.exists).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when update fails', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsValidator.validateUpdateData.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(true);
-            ContactsRepository.update.mockResolvedValue(null);
+            mockValidator.validateId.mockReturnValue(true);
+            mockValidator.validateUpdateData.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.update.mockResolvedValue(null);
 
             // Act & Assert
-            await expect(contactsService.updateContact(1, updateData))
+            await expect(clubsService.updateClub(1, updateData))
                 .rejects
-                .toThrow('Failed to update contact: Failed to update contact');
+                .toThrow('Failed to update club: Failed to update club');
         });
     });
 
-    describe('deleteContact', () => {
-        it('should delete contact successfully', async () => {
+    describe('deleteClub', () => {
+        it('should delete club successfully', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(true);
-            ContactsRepository.delete.mockResolvedValue(true);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.delete.mockResolvedValue(true);
 
             // Act
-            const result = await contactsService.deleteContact(1);
+            const result = await clubsService.deleteClub(1);
 
             // Assert
-            expect(ContactsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(ContactsRepository.exists).toHaveBeenCalledWith(1);
-            expect(ContactsRepository.delete).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockRepository.exists).toHaveBeenCalledWith(1);
+            expect(mockRepository.delete).toHaveBeenCalledWith(1);
             expect(result).toBe(true);
         });
 
-        it('should throw error when contact not found', async () => {
+        it('should throw error when club not found', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(false);
 
             // Act & Assert
-            await expect(contactsService.deleteContact(999))
+            await expect(clubsService.deleteClub(999))
                 .rejects
-                .toThrow('Failed to delete contact: Contact not found');
+                .toThrow('Failed to delete club: Club not found');
             
-            expect(ContactsRepository.delete).not.toHaveBeenCalled();
+            expect(mockRepository.delete).not.toHaveBeenCalled();
         });
 
         it('should throw error when deletion fails', async () => {
             // Arrange
-            ContactsValidator.validateId.mockReturnValue(true);
-            ContactsRepository.exists.mockResolvedValue(true);
-            ContactsRepository.delete.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.exists.mockResolvedValue(true);
+            mockRepository.delete.mockResolvedValue(false);
 
             // Act & Assert
-            await expect(contactsService.deleteContact(1))
+            await expect(clubsService.deleteClub(1))
                 .rejects
-                .toThrow('Failed to delete contact: Failed to delete contact');
+                .toThrow('Failed to delete club: Failed to delete club');
         });
 
         it('should throw error when id validation fails', async () => {
             // Arrange
-            ContactsValidator.validateId.mockImplementation(() => {
-                throw new Error('Invalid contact ID');
+            mockValidator.validateId.mockImplementation(() => {
+                throw new Error('Invalid club ID');
             });
 
             // Act & Assert
-            await expect(contactsService.deleteContact(-1))
+            await expect(clubsService.deleteClub(-1))
                 .rejects
-                .toThrow('Failed to delete contact: Invalid contact ID');
+                .toThrow('Failed to delete club: Invalid club ID');
             
-            expect(ContactsRepository.exists).not.toHaveBeenCalled();
-            expect(ContactsRepository.delete).not.toHaveBeenCalled();
+            expect(mockRepository.exists).not.toHaveBeenCalled();
+            expect(mockRepository.delete).not.toHaveBeenCalled();
         });
     });
 });

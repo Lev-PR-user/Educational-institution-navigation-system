@@ -1,10 +1,11 @@
-const ContactsRepository = require('../repositories/ContactsRepository');
-const ContactsValidator = require('../validators/ContactsValidator');
-
 class ContactsService {
+    constructor({ contactsValidator, contactsRepository }) {
+        this.contactsValidator = contactsValidator;
+        this.contactsRepository = contactsRepository;
+    }
     async getAllContacts() {
         try {
-            return await ContactsRepository.findAllWithAdminInfo();
+            return await this.contactsRepository.findAllWithAdminInfo();
         } catch (error) {
             throw new Error(`Failed to get contacts: ${error.message}`);
         }
@@ -12,9 +13,9 @@ class ContactsService {
 
     async getContactById(contacts_id) {
         try {
-            ContactsValidator.validateId(contacts_id);
+            this.contactsValidator.validateId(contacts_id);
             
-            const contact = await ContactsRepository.findById(contacts_id);
+            const contact = await this.contactsRepository.findById(contacts_id);
             if (!contact) {
                 throw new Error('Contact not found');
             }
@@ -27,19 +28,19 @@ class ContactsService {
 
     async createContact(contactData) {
         try {
-            ContactsValidator.validateCreateData(contactData);
+            this.contactsValidator.validateCreateData(contactData);
             
-            const adminExists = await ContactsRepository.adminExists(contactData.contacts_id);
+            const adminExists = await this.contactsRepository.adminExists(contactData.contacts_id);
             if (!adminExists) {
                 throw new Error('Administration not found');
             }
 
-            const contactExists = await ContactsRepository.exists(contactData.contacts_id);
+            const contactExists = await this.contactsRepository.exists(contactData.contacts_id);
             if (contactExists) {
                 throw new Error('Contact already exists for this administration');
             }
 
-            return await ContactsRepository.create(contactData);
+            return await this.contactsRepository.create(contactData);
         } catch (error) {
             throw new Error(`Failed to create contact: ${error.message}`);
         }
@@ -47,15 +48,15 @@ class ContactsService {
 
     async updateContact(contacts_id, contactData) {
         try {
-            ContactsValidator.validateId(contacts_id);
-            ContactsValidator.validateUpdateData(contactData);
+            this.contactsValidator.validateId(contacts_id);
+            this.contactsValidator.validateUpdateData(contactData);
             
-            const contactExists = await ContactsRepository.exists(contacts_id);
+            const contactExists = await this.contactsRepository.exists(contacts_id);
             if (!contactExists) {
                 throw new Error('Contact not found');
             }
 
-            const updatedContact = await ContactsRepository.update(contacts_id, contactData);
+            const updatedContact = await this.contactsRepository.update(contacts_id, contactData);
             if (!updatedContact) {
                 throw new Error('Failed to update contact');
             }
@@ -68,14 +69,14 @@ class ContactsService {
 
     async deleteContact(contacts_id) {
         try {
-            ContactsValidator.validateId(contacts_id);
+            this.contactsValidator.validateId(contacts_id);
             
-            const contactExists = await ContactsRepository.exists(contacts_id);
+            const contactExists = await this.contactsRepository.exists(contacts_id);
             if (!contactExists) {
                 throw new Error('Contact not found');
             }
             
-            const isDeleted = await ContactsRepository.delete(contacts_id);
+            const isDeleted = await this.contactsRepository.delete(contacts_id);
             if (!isDeleted) {
                 throw new Error('Failed to delete contact');
             }

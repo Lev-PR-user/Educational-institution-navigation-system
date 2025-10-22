@@ -1,10 +1,12 @@
-const AdministrationRepository = require(`../repositories/AdministrationRepository`);
-const AdministrationValidator = require(`../validators/AdministrationValidator`);
-
 class AdministrationService{
+    constructor({ administrationValidator, administrationRepository }) {
+        this.administrationValidator = administrationValidator;
+        this.administrationRepository = administrationRepository;
+    }
+
     async getAllAdministration(){
         try{
-            return await AdministrationRepository.getAllAdministration();
+            return await this.administrationRepository.getAllAdministration();
         } catch (error) {
             throw new Error(`Failed to get administration: ${error.message}`)
         };
@@ -12,9 +14,9 @@ class AdministrationService{
     
      async getAdministrationById(administration_id) {
         try {
-            AdministrationValidator.validateId(administration_id);
+            this.administrationValidator.validateId(administration_id);
             
-            const administration = await AdministrationRepository.findById(administration_id);
+            const administration = await this.administrationRepository.findById(administration_id);
             if (!administration) {
                 throw new Error('Administration not found');
             }
@@ -27,14 +29,14 @@ class AdministrationService{
 
      async createAdministration(administrationData) {
         try {
-            AdministrationValidator.validateCreateData(administrationData);
+            this.administrationValidator.validateCreateData(administrationData);
             
-            const existingAdmin = await AdministrationRepository.findById(administrationData.administration_id);
+            const existingAdmin = await this.administrationRepository.findById(administrationData.administration_id);
             if (existingAdmin) {
                 throw new Error('Administration with this ID already exists');
             }
             
-            return await AdministrationRepository.create(administrationData);
+            return await this.administrationRepository.create(administrationData);
         } catch (error) {
             throw new Error(`Failed to create administration: ${error.message}`);
         }
@@ -42,15 +44,15 @@ class AdministrationService{
 
    async updateAdministration(administration_id, administrationData) {
     try {
-        AdministrationValidator.validateId(administration_id); 
-        AdministrationValidator.validateUpdateData(administrationData); 
+        this.administrationValidator.validateId(administration_id); 
+        this.administrationValidator.validateUpdateData(administrationData); 
             
-        const existingAdmin = await AdministrationRepository.findById(administration_id);
+        const existingAdmin = await this.administrationRepository.findById(administration_id);
         if (!existingAdmin) {
             throw new Error('Administration not found');
         }
         
-        const updatedAdmin = await AdministrationRepository.update(administration_id, administrationData);
+        const updatedAdmin = await this.administrationRepository.update(administration_id, administrationData);
         if (!updatedAdmin) {
             throw new Error('Failed to update administration');
         }
@@ -63,14 +65,14 @@ class AdministrationService{
 
     async deleteAdministration(administration_id) {
         try {
-            AdministrationValidator.validateId(administration_id);
+            this.administrationValidator.validateId(administration_id);
             
-            const existingAdmin = await AdministrationRepository.findById(administration_id);
+            const existingAdmin = await this.administrationRepository.findById(administration_id);
             if (!existingAdmin) {
                 throw new Error('Administration not found');
             }
             
-            const isDeleted = await AdministrationRepository.delete(administration_id);
+            const isDeleted = await this.administrationRepository.delete(administration_id);
             if (!isDeleted) {
                 throw new Error('Failed to delete administration');
             }

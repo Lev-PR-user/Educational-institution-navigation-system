@@ -1,10 +1,11 @@
-const TeachersRepository = require('../repositories/TeachersRepository');
-const TeachersValidator = require('../validators/TeachersValidator');
-
 class TeachersService {
+        constructor({ teachersValidator, teacherRepository }) {
+        this.teachersValidator = teachersValidator;
+        this.teacherRepository = teacherRepository;
+    }
     async getAllTeachers() {
         try {
-            return await TeachersRepository.findAllWithDetails();
+            return await this.teacherRepository.findAllWithDetails();
         } catch (error) {
             throw new Error(`Failed to get teachers: ${error.message}`);
         }
@@ -12,9 +13,9 @@ class TeachersService {
 
     async getTeacherById(teacher_id) {
         try {
-            TeachersValidator.validateId(teacher_id);
+            this.teachersValidator.validateId(teacher_id);
             
-            const teacher = await TeachersRepository.findById(teacher_id);
+            const teacher = await this.teacherRepository.findById(teacher_id);
             if (!teacher) {
                 throw new Error('Teacher not found');
             }
@@ -27,16 +28,16 @@ class TeachersService {
 
     async createTeacher(teacherData) {
         try {
-            TeachersValidator.validateCreateData(teacherData);
+            this.teachersValidator.validateCreateData(teacherData);
             
             if (teacherData.location_id) {
-                const locationExists = await TeachersRepository.locationExists(teacherData.location_id);
+                const locationExists = await this.teacherRepository.locationExists(teacherData.location_id);
                 if (!locationExists) {
                     throw new Error('Location not found');
                 }
             }
 
-            return await TeachersRepository.create(teacherData);
+            return await this.teacherRepository.create(teacherData);
         } catch (error) {
             throw new Error(`Failed to create teacher: ${error.message}`);
         }
@@ -44,22 +45,22 @@ class TeachersService {
 
     async updateTeacher(teacher_id, teacherData) {
         try {
-            TeachersValidator.validateId(teacher_id);
-            TeachersValidator.validateUpdateData(teacherData);
+            this.teachersValidator.validateId(teacher_id);
+            this.teachersValidator.validateUpdateData(teacherData);
             
-            const teacherExists = await TeachersRepository.exists(teacher_id);
+            const teacherExists = await this.teacherRepository.exists(teacher_id);
             if (!teacherExists) {
                 throw new Error('Teacher not found');
             }
 
             if (teacherData.location_id) {
-                const locationExists = await TeachersRepository.locationExists(teacherData.location_id);
+                const locationExists = await this.teacherRepository.locationExists(teacherData.location_id);
                 if (!locationExists) {
                     throw new Error('Location not found');
                 }
             }
 
-            const updatedTeacher = await TeachersRepository.update(teacher_id, teacherData);
+            const updatedTeacher = await this.teacherRepository.update(teacher_id, teacherData);
             if (!updatedTeacher) {
                 throw new Error('Failed to update teacher');
             }
@@ -72,14 +73,14 @@ class TeachersService {
 
     async deleteTeacher(teacher_id) {
         try {
-            TeachersValidator.validateId(teacher_id);
+            this.teachersValidator.validateId(teacher_id);
             
-            const teacherExists = await TeachersRepository.exists(teacher_id);
+            const teacherExists = await this.teacherRepository.exists(teacher_id);
             if (!teacherExists) {
                 throw new Error('Teacher not found');
             }
             
-            const isDeleted = await TeachersRepository.delete(teacher_id);
+            const isDeleted = await this.teacherRepository.delete(teacher_id);
             if (!isDeleted) {
                 throw new Error('Failed to delete teacher');
             }

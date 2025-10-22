@@ -1,10 +1,11 @@
-const FaqsRepository = require('../repositories/FaqsRepository');
-const FaqsValidator = require('../validators/FaqsValidator');
-
 class FaqsService {
+    constructor({ faqsValidator, fagRepository }) {
+        this.faqsValidator = faqsValidator;
+        this.fagRepository = fagRepository;
+    }
     async getAllFaq() {
         try {
-            return await FaqsRepository.findAll();
+            return await this.fagRepository.findAll();
         } catch (error) {
             throw new Error(`Failed to get FAQ: ${error.message}`);
         }
@@ -12,9 +13,9 @@ class FaqsService {
 
     async getFaqById(faq_id) {
         try {
-            FaqsValidator.validateId(faq_id);
+           await this.faqsValidator.validateId(faq_id);
             
-            const faq = await FaqsRepository.findById(faq_id);
+            const faq = await this.fagRepository.findById(faq_id);
             if (!faq) {
                 throw new Error('FAQ not found');
             }
@@ -27,9 +28,9 @@ class FaqsService {
 
     async getFaqByCategory(category) {
         try {
-            FaqsValidator.validateCategory(category);
+           await this.faqsValidator.validateCategory(category);
             
-            const faqs = await FaqsRepository.findByCategory(category);
+            const faqs = await this.fagRepository.findByCategory(category);
             if (faqs.length === 0) {
                 throw new Error('No FAQ found for this category');
             }
@@ -42,9 +43,9 @@ class FaqsService {
 
     async createFaq(faqData) {
         try {
-            FaqsValidator.validateCreateData(faqData);
+           await this.faqsValidator.validateCreateData(faqData);
             
-            return await FaqsRepository.create(faqData);
+            return await this.fagRepository.create(faqData);
         } catch (error) {
             throw new Error(`Failed to create FAQ: ${error.message}`);
         }
@@ -52,15 +53,15 @@ class FaqsService {
 
     async updateFaq(faq_id, faqData) {
         try {
-            FaqsValidator.validateId(faq_id);
-            FaqsValidator.validateUpdateData(faqData);
+           await this.faqsValidator.validateId(faq_id);
+           await this.faqsValidator.validateUpdateData(faqData);
             
-            const faqExists = await FaqsRepository.exists(faq_id);
+            const faqExists = await this.fagRepository.exists(faq_id);
             if (!faqExists) {
                 throw new Error('FAQ not found');
             }
 
-            const updatedFaq = await FaqsRepository.update(faq_id, faqData);
+            const updatedFaq = await this.fagRepository.update(faq_id, faqData);
             if (!updatedFaq) {
                 throw new Error('Failed to update FAQ');
             }
@@ -73,14 +74,14 @@ class FaqsService {
 
     async deleteFaq(faq_id) {
         try {
-            FaqsValidator.validateId(faq_id);
+           await this.faqsValidator.validateId(faq_id);
             
-            const faqExists = await FaqsRepository.exists(faq_id);
+            const faqExists = await this.fagRepository.exists(faq_id);
             if (!faqExists) {
                 throw new Error('FAQ not found');
             }
             
-            const isDeleted = await FaqsRepository.delete(faq_id);
+            const isDeleted = await this.fagRepository.delete(faq_id);
             if (!isDeleted) {
                 throw new Error('Failed to delete FAQ');
             }

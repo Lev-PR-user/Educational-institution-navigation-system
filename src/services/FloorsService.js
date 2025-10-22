@@ -1,10 +1,11 @@
-const FloorsRepository = require('../repositories/FloorsRepository');
-const FloorsValidator = require('../validators/FloorsValidator');
-
 class FloorsService {
+    constructor({ floorsValidator, floorsRepository }) {
+        this.floorsValidator = floorsValidator;
+        this.floorsRepository = floorsRepository;
+    }
     async getAllFloors() {
         try {
-            return await FloorsRepository.findAll();
+            return await this.floorsRepository.findAll();
         } catch (error) {
             throw new Error(`Failed to get floors: ${error.message}`);
         }
@@ -12,9 +13,9 @@ class FloorsService {
 
     async getFloorByNumber(floor_number) {
         try {
-            FloorsValidator.validateFloorNumber(floor_number);
+            this.floorsValidator.validateFloorNumber(floor_number);
             
-            const floor = await FloorsRepository.findByNumber(floor_number);
+            const floor = await this.floorsRepository.findByNumber(floor_number);
             if (!floor) {
                 throw new Error('Floor not found');
             }
@@ -27,14 +28,14 @@ class FloorsService {
 
     async createFloor(floorData) {
         try {
-            FloorsValidator.validateCreateData(floorData);
+            this.floorsValidator.validateCreateData(floorData);
             
-            const floorExists = await FloorsRepository.exists(floorData.floor_number);
+            const floorExists = await this.floorsRepository.exists(floorData.floor_number);
             if (floorExists) {
                 throw new Error('Floor already exists');
             }
 
-            return await FloorsRepository.create(floorData);
+            return await this.floorsRepository.create(floorData);
         } catch (error) {
             throw new Error(`Failed to create floor: ${error.message}`);
         }
@@ -42,15 +43,15 @@ class FloorsService {
 
     async updateFloor(floor_number, floorData) {
         try {
-            FloorsValidator.validateFloorNumber(floor_number);
-            FloorsValidator.validateUpdateData(floorData);
+            this.floorsValidator.validateFloorNumber(floor_number);
+            this.floorsValidator.validateUpdateData(floorData);
             
-            const floorExists = await FloorsRepository.exists(floor_number);
+            const floorExists = await this.floorsRepository.exists(floor_number);
             if (!floorExists) {
                 throw new Error('Floor not found');
             }
 
-            const updatedFloor = await FloorsRepository.update(floor_number, floorData);
+            const updatedFloor = await this.floorsRepository.update(floor_number, floorData);
             if (!updatedFloor) {
                 throw new Error('Failed to update floor');
             }
@@ -63,9 +64,9 @@ class FloorsService {
 
     async deleteFloor(floor_number) {
         try {
-            FloorsValidator.validateFloorNumber(floor_number);
+            this.floorsValidator.validateFloorNumber(floor_number);
             
-            const floorExists = await FloorsRepository.exists(floor_number);
+            const floorExists = await this.floorsRepository.exists(floor_number);
             if (!floorExists) {
                 throw new Error('Floor not found');
             }
@@ -75,7 +76,7 @@ class FloorsService {
                 throw new Error('Cannot delete floor with existing locations. Delete locations first.');
             }
             
-            const isDeleted = await FloorsRepository.delete(floor_number);
+            const isDeleted = await this.floorsRepository.delete(floor_number);
             if (!isDeleted) {
                 throw new Error('Failed to delete floor');
             }

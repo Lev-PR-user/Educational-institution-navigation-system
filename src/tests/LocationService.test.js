@@ -1,30 +1,9 @@
 const LocationService = require('../services/LocationService');
 
-// Мокаем зависимости ДО импорта сервиса
-jest.mock('../repositories/LocationsRepository', () => ({
-    findAllWithFloorInfo: jest.fn(),
-    findById: jest.fn(),
-    floorExists: jest.fn(),
-    locationExists: jest.fn(),
-    findByFloorNumber: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn()
-}));
-
-jest.mock('../validators/LocationsValidator', () => ({
-    validateId: jest.fn(),
-    validateFloorNumber: jest.fn(),
-    createLocation: jest.fn(),
-    updateLocation: jest.fn()
-}));
-
-// Теперь импортируем моки
-const LocationsRepository = require('../repositories/LocationsRepository');
-const LocationsValidator = require('../validators/LocationsValidator');
-
 describe('LocationService', () => {
     let locationService;
+    let mockRepository;
+    let mockValidator;
     
     const mockLocation = {
         location_id: 1,
@@ -46,7 +25,30 @@ describe('LocationService', () => {
     };
 
     beforeEach(() => {
-        locationService = new LocationService();
+        // Создаем моки для зависимостей
+        mockRepository = {
+            findAllWithFloorInfo: jest.fn(),
+            findById: jest.fn(),
+            floorExists: jest.fn(),
+            locationExists: jest.fn(),
+            findByFloorNumber: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn()
+        };
+
+        mockValidator = {
+            validateId: jest.fn(),
+            validateFloorNumber: jest.fn(),
+            createLocation: jest.fn(),
+            updateLocation: jest.fn()
+        };
+
+        locationService = new LocationService({
+            locationsValidator: mockValidator,
+            locationRepository: mockRepository 
+        });
+
         jest.clearAllMocks();
     });
 
@@ -57,20 +59,20 @@ describe('LocationService', () => {
                 mockLocationWithFloorInfo, 
                 { ...mockLocationWithFloorInfo, location_id: 2, location_name: 'Science Building' }
             ];
-            LocationsRepository.findAllWithFloorInfo.mockResolvedValue(mockLocations);
+            mockRepository.findAllWithFloorInfo.mockResolvedValue(mockLocations);
 
             // Act
             const result = await locationService.getAllLocations();
 
             // Assert
-            expect(LocationsRepository.findAllWithFloorInfo).toHaveBeenCalled();
+            expect(mockRepository.findAllWithFloorInfo).toHaveBeenCalled();
             expect(result).toEqual(mockLocations);
         });
 
         it('should throw error when repository fails', async () => {
             // Arrange
             const repositoryError = new Error('Database connection failed');
-            LocationsRepository.findAllWithFloorInfo.mockRejectedValue(repositoryError);
+            mockRepository.findAllWithFloorInfo.mockRejectedValue(repositoryError);
 
             // Act & Assert
             await expect(locationService.getAllLocations())
@@ -82,22 +84,22 @@ describe('LocationService', () => {
     describe('getLocationById', () => {
         it('should return location by id successfully', async () => {
             // Arrange
-            LocationsValidator.validateId.mockReturnValue(true);
-            LocationsRepository.findById.mockResolvedValue(mockLocationWithFloorInfo);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.findById.mockResolvedValue(mockLocationWithFloorInfo);
 
             // Act
             const result = await locationService.getLocationById(1);
 
             // Assert
-            expect(LocationsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(LocationsRepository.findById).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockRepository.findById).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockLocationWithFloorInfo);
         });
 
         it('should throw error when location not found', async () => {
             // Arrange
-            LocationsValidator.validateId.mockReturnValue(true);
-            LocationsRepository.findById.mockResolvedValue(null);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.findById.mockResolvedValue(null);
 
             // Act & Assert
             await expect(locationService.getLocationById(999))
@@ -107,7 +109,7 @@ describe('LocationService', () => {
 
         it('should throw error when id validation fails', async () => {
             // Arrange
-            LocationsValidator.validateId.mockImplementation(() => {
+            mockValidator.validateId.mockImplementation(() => {
                 throw new Error('Invalid location ID');
             });
 
@@ -116,7 +118,7 @@ describe('LocationService', () => {
                 .rejects
                 .toThrow('Failed to get location: Invalid location ID');
             
-            expect(LocationsRepository.findById).not.toHaveBeenCalled();
+            expect(mockRepository.findById).not.toHaveBeenCalled();
         });
     });
 
@@ -124,36 +126,36 @@ describe('LocationService', () => {
         it('should return locations by floor number successfully', async () => {
             // Arrange
             const mockLocations = [mockLocationWithFloorInfo, { ...mockLocationWithFloorInfo, location_id: 2 }];
-            LocationsValidator.validateFloorNumber.mockReturnValue(true);
-            LocationsRepository.floorExists.mockResolvedValue(true);
-            LocationsRepository.findByFloorNumber.mockResolvedValue(mockLocations);
+            mockValidator.validateFloorNumber.mockReturnValue(true);
+            mockRepository.floorExists.mockResolvedValue(true);
+            mockRepository.findByFloorNumber.mockResolvedValue(mockLocations);
 
             // Act
             const result = await locationService.getLocationsByFloor(1);
 
             // Assert
-            expect(LocationsValidator.validateFloorNumber).toHaveBeenCalledWith(1);
-            expect(LocationsRepository.floorExists).toHaveBeenCalledWith(1);
-            expect(LocationsRepository.findByFloorNumber).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateFloorNumber).toHaveBeenCalledWith(1);
+            expect(mockRepository.floorExists).toHaveBeenCalledWith(1);
+            expect(mockRepository.findByFloorNumber).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockLocations);
         });
 
         it('should throw error when floor not found', async () => {
             // Arrange
-            LocationsValidator.validateFloorNumber.mockReturnValue(true);
-            LocationsRepository.floorExists.mockResolvedValue(false);
+            mockValidator.validateFloorNumber.mockReturnValue(true);
+            mockRepository.floorExists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(locationService.getLocationsByFloor(999))
                 .rejects
                 .toThrow('Failed to get locations by floor: Floor not found');
             
-            expect(LocationsRepository.findByFloorNumber).not.toHaveBeenCalled();
+            expect(mockRepository.findByFloorNumber).not.toHaveBeenCalled();
         });
 
         it('should throw error when floor number validation fails', async () => {
             // Arrange
-            LocationsValidator.validateFloorNumber.mockImplementation(() => {
+            mockValidator.validateFloorNumber.mockImplementation(() => {
                 throw new Error('Invalid floor number');
             });
 
@@ -162,8 +164,8 @@ describe('LocationService', () => {
                 .rejects
                 .toThrow('Failed to get locations by floor: Invalid floor number');
             
-            expect(LocationsRepository.floorExists).not.toHaveBeenCalled();
-            expect(LocationsRepository.findByFloorNumber).not.toHaveBeenCalled();
+            expect(mockRepository.floorExists).not.toHaveBeenCalled();
+            expect(mockRepository.findByFloorNumber).not.toHaveBeenCalled();
         });
     });
 
@@ -178,36 +180,36 @@ describe('LocationService', () => {
 
         it('should create location successfully', async () => {
             // Arrange
-            LocationsValidator.createLocation.mockReturnValue(true);
-            LocationsRepository.floorExists.mockResolvedValue(true);
-            LocationsRepository.create.mockResolvedValue({ ...mockLocation, ...validLocationData });
+            mockValidator.createLocation.mockReturnValue(true);
+            mockRepository.floorExists.mockResolvedValue(true);
+            mockRepository.create.mockResolvedValue({ ...mockLocation, ...validLocationData });
 
             // Act
             const result = await locationService.createLocation(validLocationData);
 
             // Assert
-            expect(LocationsValidator.createLocation).toHaveBeenCalledWith(validLocationData);
-            expect(LocationsRepository.floorExists).toHaveBeenCalledWith(2);
-            expect(LocationsRepository.create).toHaveBeenCalledWith(validLocationData);
+            expect(mockValidator.createLocation).toHaveBeenCalledWith(validLocationData);
+            expect(mockRepository.floorExists).toHaveBeenCalledWith(2);
+            expect(mockRepository.create).toHaveBeenCalledWith(validLocationData);
             expect(result).toEqual({ ...mockLocation, ...validLocationData });
         });
 
         it('should throw error when floor not found', async () => {
             // Arrange
-            LocationsValidator.createLocation.mockReturnValue(true);
-            LocationsRepository.floorExists.mockResolvedValue(false);
+            mockValidator.createLocation.mockReturnValue(true);
+            mockRepository.floorExists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(locationService.createLocation(validLocationData))
                 .rejects
                 .toThrow('Failed to create location: Floor not found');
             
-            expect(LocationsRepository.create).not.toHaveBeenCalled();
+            expect(mockRepository.create).not.toHaveBeenCalled();
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
-            LocationsValidator.createLocation.mockImplementation(() => {
+            mockValidator.createLocation.mockImplementation(() => {
                 throw new Error('Invalid location data');
             });
 
@@ -216,8 +218,8 @@ describe('LocationService', () => {
                 .rejects
                 .toThrow('Failed to create location: Invalid location data');
             
-            expect(LocationsRepository.floorExists).not.toHaveBeenCalled();
-            expect(LocationsRepository.create).not.toHaveBeenCalled();
+            expect(mockRepository.floorExists).not.toHaveBeenCalled();
+            expect(mockRepository.create).not.toHaveBeenCalled();
         });
     });
 
@@ -235,73 +237,73 @@ describe('LocationService', () => {
         it('should update location successfully', async () => {
             // Arrange
             const locationId = 1;
-            LocationsValidator.updateLocation.mockReturnValue(true);
-            LocationsRepository.locationExists.mockResolvedValue(true);
-            LocationsRepository.update.mockResolvedValue({ ...mockLocation, ...updateData });
+            mockValidator.updateLocation.mockReturnValue(true);
+            mockRepository.locationExists.mockResolvedValue(true);
+            mockRepository.update.mockResolvedValue({ ...mockLocation, ...updateData });
 
             // Act
             const result = await locationService.updateLocation(locationId, updateData);
 
             // Assert
-            expect(LocationsValidator.updateLocation).toHaveBeenCalledWith({ ...updateData, location_id: locationId });
-            expect(LocationsRepository.locationExists).toHaveBeenCalledWith(locationId);
-            expect(LocationsRepository.update).toHaveBeenCalledWith({ ...updateData, location_id: locationId });
+            expect(mockValidator.updateLocation).toHaveBeenCalledWith({ ...updateData, location_id: locationId });
+            expect(mockRepository.locationExists).toHaveBeenCalledWith(locationId);
+            expect(mockRepository.update).toHaveBeenCalledWith({ ...updateData, location_id: locationId });
             expect(result).toEqual({ ...mockLocation, ...updateData });
         });
 
         it('should update location with new floor successfully', async () => {
             // Arrange
             const locationId = 1;
-            LocationsValidator.updateLocation.mockReturnValue(true);
-            LocationsRepository.locationExists.mockResolvedValue(true);
-            LocationsRepository.floorExists.mockResolvedValue(true);
-            LocationsRepository.update.mockResolvedValue({ ...mockLocation, ...updateDataWithFloor });
+            mockValidator.updateLocation.mockReturnValue(true);
+            mockRepository.locationExists.mockResolvedValue(true);
+            mockRepository.floorExists.mockResolvedValue(true);
+            mockRepository.update.mockResolvedValue({ ...mockLocation, ...updateDataWithFloor });
 
             // Act
             const result = await locationService.updateLocation(locationId, updateDataWithFloor);
 
             // Assert
-            expect(LocationsValidator.updateLocation).toHaveBeenCalledWith({ ...updateDataWithFloor, location_id: locationId });
-            expect(LocationsRepository.locationExists).toHaveBeenCalledWith(locationId);
-            expect(LocationsRepository.floorExists).toHaveBeenCalledWith(3);
-            expect(LocationsRepository.update).toHaveBeenCalledWith({ ...updateDataWithFloor, location_id: locationId });
+            expect(mockValidator.updateLocation).toHaveBeenCalledWith({ ...updateDataWithFloor, location_id: locationId });
+            expect(mockRepository.locationExists).toHaveBeenCalledWith(locationId);
+            expect(mockRepository.floorExists).toHaveBeenCalledWith(3);
+            expect(mockRepository.update).toHaveBeenCalledWith({ ...updateDataWithFloor, location_id: locationId });
             expect(result).toEqual({ ...mockLocation, ...updateDataWithFloor });
         });
 
         it('should throw error when location not found', async () => {
             // Arrange
             const locationId = 999;
-            LocationsValidator.updateLocation.mockReturnValue(true);
-            LocationsRepository.locationExists.mockResolvedValue(false);
+            mockValidator.updateLocation.mockReturnValue(true);
+            mockRepository.locationExists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(locationService.updateLocation(locationId, updateData))
                 .rejects
                 .toThrow('Failed to update location: Location not found');
             
-            expect(LocationsRepository.floorExists).not.toHaveBeenCalled();
-            expect(LocationsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.floorExists).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when new floor not found', async () => {
             // Arrange
             const locationId = 1;
-            LocationsValidator.updateLocation.mockReturnValue(true);
-            LocationsRepository.locationExists.mockResolvedValue(true);
-            LocationsRepository.floorExists.mockResolvedValue(false);
+            mockValidator.updateLocation.mockReturnValue(true);
+            mockRepository.locationExists.mockResolvedValue(true);
+            mockRepository.floorExists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(locationService.updateLocation(locationId, updateDataWithFloor))
                 .rejects
                 .toThrow('Failed to update location: Floor not found');
             
-            expect(LocationsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when validation fails', async () => {
             // Arrange
             const locationId = 1;
-            LocationsValidator.updateLocation.mockImplementation(() => {
+            mockValidator.updateLocation.mockImplementation(() => {
                 throw new Error('Invalid update data');
             });
 
@@ -310,16 +312,16 @@ describe('LocationService', () => {
                 .rejects
                 .toThrow('Failed to update location: Invalid update data');
             
-            expect(LocationsRepository.locationExists).not.toHaveBeenCalled();
-            expect(LocationsRepository.update).not.toHaveBeenCalled();
+            expect(mockRepository.locationExists).not.toHaveBeenCalled();
+            expect(mockRepository.update).not.toHaveBeenCalled();
         });
 
         it('should throw error when update fails', async () => {
             // Arrange
             const locationId = 1;
-            LocationsValidator.updateLocation.mockReturnValue(true);
-            LocationsRepository.locationExists.mockResolvedValue(true);
-            LocationsRepository.update.mockResolvedValue(null);
+            mockValidator.updateLocation.mockReturnValue(true);
+            mockRepository.locationExists.mockResolvedValue(true);
+            mockRepository.update.mockResolvedValue(null);
 
             // Act & Assert
             await expect(locationService.updateLocation(locationId, updateData))
@@ -331,38 +333,38 @@ describe('LocationService', () => {
     describe('deleteLocation', () => {
         it('should delete location successfully', async () => {
             // Arrange
-            LocationsValidator.validateId.mockReturnValue(true);
-            LocationsRepository.locationExists.mockResolvedValue(true);
-            LocationsRepository.delete.mockResolvedValue(true);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.locationExists.mockResolvedValue(true);
+            mockRepository.delete.mockResolvedValue(true);
 
             // Act
             const result = await locationService.deleteLocation(1);
 
             // Assert
-            expect(LocationsValidator.validateId).toHaveBeenCalledWith(1);
-            expect(LocationsRepository.locationExists).toHaveBeenCalledWith(1);
-            expect(LocationsRepository.delete).toHaveBeenCalledWith(1);
+            expect(mockValidator.validateId).toHaveBeenCalledWith(1);
+            expect(mockRepository.locationExists).toHaveBeenCalledWith(1);
+            expect(mockRepository.delete).toHaveBeenCalledWith(1);
             expect(result).toBe(true);
         });
 
         it('should throw error when location not found', async () => {
             // Arrange
-            LocationsValidator.validateId.mockReturnValue(true);
-            LocationsRepository.locationExists.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.locationExists.mockResolvedValue(false);
 
             // Act & Assert
             await expect(locationService.deleteLocation(999))
                 .rejects
                 .toThrow('Failed to delete location: Location not found');
             
-            expect(LocationsRepository.delete).not.toHaveBeenCalled();
+            expect(mockRepository.delete).not.toHaveBeenCalled();
         });
 
         it('should throw error when deletion fails', async () => {
             // Arrange
-            LocationsValidator.validateId.mockReturnValue(true);
-            LocationsRepository.locationExists.mockResolvedValue(true);
-            LocationsRepository.delete.mockResolvedValue(false);
+            mockValidator.validateId.mockReturnValue(true);
+            mockRepository.locationExists.mockResolvedValue(true);
+            mockRepository.delete.mockResolvedValue(false);
 
             // Act & Assert
             await expect(locationService.deleteLocation(1))
@@ -372,7 +374,7 @@ describe('LocationService', () => {
 
         it('should throw error when id validation fails', async () => {
             // Arrange
-            LocationsValidator.validateId.mockImplementation(() => {
+            mockValidator.validateId.mockImplementation(() => {
                 throw new Error('Invalid location ID');
             });
 
@@ -381,8 +383,8 @@ describe('LocationService', () => {
                 .rejects
                 .toThrow('Failed to delete location: Invalid location ID');
             
-            expect(LocationsRepository.locationExists).not.toHaveBeenCalled();
-            expect(LocationsRepository.delete).not.toHaveBeenCalled();
+            expect(mockRepository.locationExists).not.toHaveBeenCalled();
+            expect(mockRepository.delete).not.toHaveBeenCalled();
         });
     });
 });

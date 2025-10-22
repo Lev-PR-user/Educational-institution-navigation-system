@@ -17,7 +17,11 @@
     "test:question": "jest QuestionsService.test.js --detectOpenHandles --forceExit",
     "test:rooms": "jest RoomsService.test.js --detectOpenHandles --forceExit",
     "test:teachers": "jest TeachersService.test.js --detectOpenHandles --forceExit",
-    "test:user": "jest UserService.test.js --detectOpenHandles --forceExit"
+    "test:user": "jest UserService.test.js --detectOpenHandles --forceExit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "build": "npm run build:swagger && node your-build-script.js",
+    "build:swagger": "node swagger-generator.js"
   },
   "keywords": [],
   "author": "",
@@ -31,7 +35,9 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.16.3",
-    "sequelize": "^6.37.7"
+    "sequelize": "^6.37.7",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "jest": {
     "testEnvironment": "node",
