@@ -31,6 +31,25 @@ app.use(express.json());
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerOptions));
 
+app.get('/', (req, res) => {
+  res.json({
+    message: 'University Navigation API',
+    endpoints: {
+      users: '/api/user',
+      teachers: '/api/teachers',
+      administration: '/api/administration',
+      faqs: '/api/faqs',
+      clubs: '/api/clubs',
+      contacts: '/api/contacts',
+      answers: '/api/answers',
+      questions: '/api/questions',
+      rooms: '/api/rooms',
+      locations: '/api/locations',
+      floors: '/api/floors'
+    }
+  });
+});
+
 app.use('/api/user', createUserRoutes(
   container.resolve('userController'), 
   container.resolve('authMiddleware')
