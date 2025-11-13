@@ -4,7 +4,7 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - "5000:5000"
     environment:
       - DB_HOST=db
       - DB_PORT=5432
@@ -26,6 +26,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5123:5123"
+    depends_on:
+      - app
 
 volumes:
   postgres_data:
